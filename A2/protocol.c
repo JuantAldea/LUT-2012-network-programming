@@ -69,34 +69,20 @@ int recv_msg(int socket, uchar **msg, uint8_t *type)
 
 int send_login(int socket, uchar *username)
 {
-	return send_msg(socket, username, LOGIN);
+	return send_msg(socket, username, CONNECT_MSG);
 }
 
 int send_disconnect(int socket, double delay)
 {
 	uchar *buffer = (uchar*)malloc(100 * sizeof(uchar));
 	sprintf((char*)buffer, "%.3f", delay);
-	int bytes_sent = send_msg(socket, buffer, DISCONNECT);
+	int bytes_sent = send_msg(socket, buffer, QUIT_MSG);
 	free(buffer);
 	return bytes_sent;
 }
 
-int send_news_item(int socket, uchar *news_item)
-{
-	return send_msg(socket, news_item, NEWSITEM);
-}
 
 int send_error(int socket, uchar *msg)
 {
-	return send_msg(socket, msg, ERROR);
-}
-
-int send_clock(int socket)
-{
-	//http://stackoverflow.com/a/1442131
-	time_t t = time(NULL);
-	struct tm tm = *localtime(&t);
-	uchar date_buffer[50];
-	sprintf((char*)date_buffer, "%d-%d-%d %d:%d:%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-	return send_msg(socket, date_buffer, CLOCK);
+	return send_msg(socket, msg, ERROR_MSG);
 }

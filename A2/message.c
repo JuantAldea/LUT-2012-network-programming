@@ -37,5 +37,5 @@ void message_fill(int size, int type, char *nickname, char *message, message *ms
 	msg->message = (char *) malloc(sizeof(char) * 16);
 	memset(msg->nickname, '\0', sizeof(char) * 16);
 	memcpy(msg->nickname, nickname, sizeof(char) * 15);
-	mem
+
 }
