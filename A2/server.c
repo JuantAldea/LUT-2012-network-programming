@@ -19,18 +19,9 @@ int server(char *port)
 {
 	linked_list *users = (linked_list*)malloc(sizeof(linked_list));
 	list_init(users);
-	//get the max number of open files $ ulimit -n
-	// struct rlimit rlp;
-	// if (getrlimit(RLIMIT_NOFILE, &rlp) < 0){
-	// 	perror("Error reading the limit of opened descriptors, assumed 1024 by default\n");
-	// 	MAX_OPENED_FDS = 1024;
-	// }else{
-	// 	MAX_OPENED_FDS = rlp.rlim_max;
-	// }
 
-	char *address = NULL;
 	int server_socket_descriptor = -1;
-	if ((server_socket_descriptor = prepare_server(address, port)) < 0){
+	if ((server_socket_descriptor = prepare_server(port)) < 0){
 		exit(EXIT_FAILURE);
 	}
 
@@ -43,11 +34,11 @@ int server(char *port)
 	struct sockaddr_storage remote_addr;
 	socklen_t addr_size;
 	addr_size = sizeof(remote_addr);
-	int connection_fd;
+
 	fd_set ready_set;
 	FD_ZERO(&ready_set);
-	FD_SET(server_socket_descriptor, &ready_set);
 	FD_SET(STDIN_FILENO, &ready_set);
+	FD_SET(server_socket_descriptor, &ready_set);
 
 	int max_fd = server_socket_descriptor;
 	int running = 1;//server running
@@ -68,14 +59,13 @@ int server(char *port)
 			switch(command){
 				case SHUTDOWN_COMMAND_CODE:
 					running = 0;
-					disconnect_clients(users);
 					break;
 				case START_COMMAND_CODE:
-					printf("New connections allowed\n");
+					printf("[SERVER] New connections allowed\n");
 					accepting_new_connections = 1;
 					break;
 				case STOP_COMMAND_CODE:
-					printf("New connections disallowed\n");
+					printf("[SERVER] New connections disallowed\n");
 					accepting_new_connections = 0;
 					break;
 				case LIST_COMMAND_CODE:
@@ -85,18 +75,19 @@ int server(char *port)
 		}
 
 		if (FD_ISSET(server_socket_descriptor, &ready_set)){
+			int connection_fd = -1;
 			if ((connection_fd = accept(server_socket_descriptor, (struct sockaddr*)&remote_addr, &addr_size)) < 0){
-				printf("Error in the incoming connection %s\n", strerror(errno));
+				printf("[SERVER] Error in the incoming connection %s\n", strerror(errno));
 			}
 			if (accepting_new_connections){
-				printf("New connection accepted\n");
+				printf("[SERVER] New client connected with fd = %d\n", connection_fd);
 				char unknow_name[1] = {'\0'};
 				node * new_user = list_create_node(connection_fd, unknow_name);
 				list_add_last(new_user, users);
 			}else{
 				char error_msg[] = "New connections are not allowed";
 				send_error(connection_fd, (uchar *)error_msg);
-				printf("New connection dropped\n");
+				printf("[SERVER] New connection dropped.\n");
 				close(connection_fd);
 			}
 		}
@@ -107,14 +98,21 @@ int server(char *port)
 				uint8_t type = ERROR_MSG;
 				int bytes_readed = recv_msg(i->fd, &buffer, &type);
 				if (bytes_readed <= 0){
-					printf("Client disconnected\n");
-					list_remove_by_fd(i->fd, users);
-					close(i->fd);
+					//the current node is about to be removed
+					//so next iteration need an ajustment
+					node *previous = i->previous;
+					manage_disconnect(i->fd, users);
+					i = previous;
 				}else{
 					if(type == CONNECT_MSG){
-						list_set_name(i->fd, (char *)buffer, users);
+						manage_nick_change_by_node(i, (char *)buffer, users);
 					}else if(type == QUIT_MSG){
-
+						//the same goes for this
+						node *previous = i->previous;
+						manage_disconnect(i->fd, users);
+						i = previous;
+					}else{
+						printf("%s\n", buffer);
 					}
 					free(buffer);
 				}
@@ -126,9 +124,7 @@ int server(char *port)
 		FD_SET(server_socket_descriptor, &ready_set);
 		max_fd = server_socket_descriptor;
 		for(node *i = users->head->next; i != users->tail; i = i->next){
-			if (FD_ISSET(i->fd, &ready_set)){
-				FD_SET(i->fd, &ready_set);
-			}
+			FD_SET(i->fd, &ready_set);
 			max_fd = ((i->fd > max_fd) ? i->fd : max_fd);
 		}
 	}
@@ -142,7 +138,7 @@ int server(char *port)
 	// 	for (int i = 0; i < number_of_fds; i++){
 	// 		if (FD_ISSET(i, &ready_set)){
 	// 			if (i == STDIN_FILENO){//activity in the standard input
-	// 				char command_buffer[10];
+		// 				char command_buffer[10];
 	// 				//don't flood me!
 	// 				scanf("%9s", command_buffer);
 	// 				fflush(stdin);
@@ -211,19 +207,20 @@ int server(char *port)
 	return 0;
 }
 
-int prepare_server (char *address, char *port)
+int prepare_server (char *port)
 {
 	struct addrinfo hints;
 	//fill all the fields with zero, just to be sure. Actually it crashed without this.
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC; //don't care ipv4 or ipv6
+	hints.ai_family = AF_INET; //don't care ipv4 or ipv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; //automatic self ip
 	hints.ai_protocol = IPPROTO_TCP;
 	int error = 0;
 	struct addrinfo *res = NULL;
-	if ((error = getaddrinfo(address, port, &hints, &res)) < 0){
-		perror(gai_strerror(error));
+	printf("|%s|\n", port);
+	if ((error = getaddrinfo(NULL, port, &hints, &res)) < 0){
+		printf("Getaddrinfo error: %s\n", gai_strerror(error));
 		exit(EXIT_FAILURE);
 	}
 
@@ -264,9 +261,72 @@ int prepare_server (char *address, char *port)
 void disconnect_clients(linked_list *list)
 {
 	for(node *i = list->head->next; i != list->tail; i = i->next){
+		if (strnlen(i->name, MAX_NICKNAME_LENGTH)){
+			printf("[SERVER] Disconnecting user %s: ", i->name);
+		}else{
+			printf("[SERVER] Disconnecting unknow user at fd = %d:", i->fd);
+		}
 		if (close(i->fd) < 0){
-			fprintf(stderr, "Error closing fd of %s, ", i->name);
-			strerror(errno);
+			printf(" FAILED!: %s\n", strerror(errno));
+		}else{
+			printf("OK!\n");
 		}
 	}
+}
+
+node *manage_disconnect(int fd, linked_list *users)
+{
+	node *user = list_get_node_by_fd(fd, users);
+	close(user->fd);
+	if (strnlen(user->name, MAX_NICKNAME_LENGTH)){
+		printf("[SERVER] %s disconnected\n", user->name);
+	}else{
+		printf("[SERVER] User connected with fd = %d disconnected\n", user->fd);
+	}
+	return list_remove_node(user, users);
+}
+
+int manage_nick_change_by_fd(int fd, char *name, linked_list *users)
+{
+	return nick_chage_by_fd(fd, name, users);
+}
+
+int manage_nick_change_by_node(node *i, char *name, linked_list *users)
+{
+	char old_nick[16];
+	int old_nick_len = strnlen(i->name, MAX_NICKNAME_LENGTH);
+
+	if (old_nick_len){
+		memset(old_nick, '\0', sizeof(char) * 16);
+		memcpy(old_nick, i->name, sizeof(char)*old_nick_len);
+	}
+
+	int name_changed = nick_change_by_node(i, name, users);
+	if(name_changed){
+		if (old_nick_len){
+			printf("[SERVER] %s changed nick to %s\n", old_nick, name);
+		}else{
+			printf("[SERVER] Client with fd = %d sets name to %s\n", i->fd, name);
+		}
+	}
+	return name_changed;
+}
+
+int nick_chage_by_fd(int fd, char *name, linked_list *users)
+{
+	for(node *i = users->head->next; i != users->tail; i = i->next){
+		if (i->fd == fd){
+			return nick_change_by_node(i, name, users);
+		}
+	}
+	return 0;
+}
+
+int nick_change_by_node(node *i, char *name, linked_list *users)
+{
+	if (!strncmp(i->name, name, MAX_NICKNAME_LENGTH)){
+		return 0;
+	}
+	list_set_name_by_node(i, name, users);
+	return 1;
 }

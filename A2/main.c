@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 		help(argv[0]);
 	}else if (server_mode){
 		if (port != NULL){
-			return server(addr);
+			return server(port);
 		}else{
 			printf("Listening port need: -l <port>\n");
 		}
@@ -102,10 +102,12 @@ void help(char *program){
 
 int is_number(char *str, int base)
 {
-	char **endptr = NULL;
-	strtol(str, endptr, base);
-	if (endptr != NULL && str != NULL){
-		return (*str != '\0' && **endptr == '\0');
+	if (str != NULL){
+		char *endptr;
+		strtol(str, &endptr, base);
+		int return_value = (*str != '\0' && *endptr == '\0');
+		return return_value;
 	}
+	printf("Broza\n");
 	return 0;
 }

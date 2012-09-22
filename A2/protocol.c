@@ -21,6 +21,24 @@ int send_msg(int socket, uchar *msg, uint8_t type)
 	return total_sent_bytes;
 }
 
+// int peek_msg(int socket)
+// {
+// 	uint16_t msg_size = -1;
+// 	ioctl (socket, FIONREAD, &buffered_bytes);
+// 	if (bytes_availables < 2 && bytes_availables != 0){b
+// 		return -1;
+// 	}
+// 	int recv_bytes = recv(socket, &msg_size, sizeof(uint16_t), MSG_PEEK);
+// 	if (recv_bytes == 0){
+// 		return 0; //disconnect
+// 	}
+
+// 	if (msg_size > buffered_bytes){
+// 		return -1;//not the full msg
+// 	}
+// 	return 1;//full msg received
+// }
+
 int recv_msg(int socket, uchar **msg, uint8_t *type)
 {
 	uint16_t msg_size = -1;

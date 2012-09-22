@@ -6,7 +6,7 @@ OBJ := common.o server.o client.o protocol.o linked_list.o
 build: all
 
 all: $(OBJ) main.c
-	$(CC) $(CFLAGS) main.c -o $(TARGET) $(OBJ)
+	$(CC) $(CFLAGS) -o $(TARGET) main.c $(OBJ)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $*.c -o $*.o

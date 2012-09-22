@@ -15,7 +15,6 @@ int client(char *name, char *address, char *port)
 	if ((socket_descriptor = prepare_connection(address, port)) < 0){
 		return EXIT_FAILURE;
 	}
-
 	send_login(socket_descriptor, (uchar *)name);
 	fd_set master_set;
 	fd_set ready_set;
@@ -25,7 +24,6 @@ int client(char *name, char *address, char *port)
 	FD_SET(STDIN_FILENO, &master_set);
 	FD_SET(socket_descriptor, &master_set);
 	int running = 1;
-
 	while(running){
 		ready_set = master_set;
 		//select descriptors with activity
@@ -84,7 +82,7 @@ int prepare_connection(char *address, char *port)
 	struct addrinfo hints;
 	//fill all the fields with zero, just to be sure. Actually it crashed without this.
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC; //don't care ipv4 or ipv6
+	hints.ai_family = AF_INET; //don't care ipv4 or ipv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; //automatic self ip
 	hints.ai_protocol = IPPROTO_TCP;
