@@ -17,7 +17,7 @@ int parse_command(char *command)
 
 int server(char *port)
 {
-	linked_list *users = (linked_list*)malloc(sizeof(linked_list));
+	linked_list_t *users = (linked_list_t*)malloc(sizeof(linked_list_t));
 	list_init(users);
 
 	int server_socket_descriptor = -1;
@@ -43,7 +43,7 @@ int server(char *port)
 	int max_fd = server_socket_descriptor;
 	int running = 1;//server running
 	int accepting_new_connections = 1;
-
+	printf("[SERVER] Listening for connections on port %s (fd = %d)\n", port, server_socket_descriptor);
 	while(running){
 		if(select(max_fd + 1, &ready_set, NULL, NULL, NULL) < 0) {
 			perror("Error in select");
@@ -82,39 +82,46 @@ int server(char *port)
 			if (accepting_new_connections){
 				printf("[SERVER] New client connected with fd = %d\n", connection_fd);
 				char unknow_name[1] = {'\0'};
-				node * new_user = list_create_node(connection_fd, unknow_name);
+				node_t *new_user = list_create_node(connection_fd, unknow_name);
 				list_add_last(new_user, users);
 			}else{
 				char error_msg[] = "New connections are not allowed";
-				send_error(connection_fd, (uchar *)error_msg);
+				send_error(connection_fd, error_msg);
 				printf("[SERVER] New connection dropped.\n");
 				close(connection_fd);
 			}
 		}
 
-		for(node *i = users->head->next; i != users->tail; i = i->next){
-			if (FD_ISSET(i->fd, &ready_set)){
-				uchar *buffer = NULL;
-				uint8_t type = ERROR_MSG;
-				int bytes_readed = recv_msg(i->fd, &buffer, &type);
+		for(node_t *i = users->head->next; i != users->tail; i = i->next){
+			if (FD_ISSET(i->client->fd, &ready_set)){
+				int full_message = 0;
+				int bytes_readed = recv_msg(i->client->fd, i->buffer, &full_message);
 				if (bytes_readed <= 0){
 					//the current node is about to be removed
-					//so next iteration need an ajustment
-					node *previous = i->previous;
-					manage_disconnect(i->fd, users);
+					//so next iteration need an small ajustment
+					node_t *previous = i->previous;
+					manage_disconnect_by_node(i, users, 0);
 					i = previous;
-				}else{
-					if(type == CONNECT_MSG){
-						manage_nick_change_by_node(i, (char *)buffer, users);
-					}else if(type == QUIT_MSG){
-						//the same goes for this
-						node *previous = i->previous;
-						manage_disconnect(i->fd, users);
+				}else if (full_message){
+					if(i->buffer->message_type == CONNECT_MSG){
+						char *nickname = NULL;
+						char *introduction = NULL;
+						split_connect_message(i->buffer, &nickname, &introduction);
+						manage_nick_change_by_node(i, nickname, users);
+						free(nickname);
+						free(introduction);
+					}else if (i->buffer->message_type == QUIT_MSG){
+						node_t *previous = i->previous;
+						manage_disconnect_by_node(i, users, 1);
 						i = previous;
-					}else{
-						printf("%s\n", buffer);
+					}else {
+						printf("%d %d %s\n", i->buffer->message_length,
+											 i->buffer->message_type,
+											 i->buffer->buffer);
 					}
-					free(buffer);
+					recv_buffer_reset(i->buffer);
+				}else{
+					printf("Partial recv\n");
 				}
 			}
 		}
@@ -123,83 +130,12 @@ int server(char *port)
 		FD_SET(STDIN_FILENO, &ready_set);
 		FD_SET(server_socket_descriptor, &ready_set);
 		max_fd = server_socket_descriptor;
-		for(node *i = users->head->next; i != users->tail; i = i->next){
-			FD_SET(i->fd, &ready_set);
-			max_fd = ((i->fd > max_fd) ? i->fd : max_fd);
+		for(node_t *i = users->head->next; i != users->tail; i = i->next){
+			FD_SET(i->client->fd, &ready_set);
+			max_fd = ((i->client->fd > max_fd) ? i->client->fd : max_fd);
 		}
 	}
 
-	// while(running){
-	// 	ready_set = master_set;
-	// 	if(select(number_of_fds, &ready_set, NULL, NULL, NULL) < 0) {
-	// 		perror("Error in select");
-	// 		exit(EXIT_FAILURE);
-	// 	}
-	// 	for (int i = 0; i < number_of_fds; i++){
-	// 		if (FD_ISSET(i, &ready_set)){
-	// 			if (i == STDIN_FILENO){//activity in the standard input
-		// 				char command_buffer[10];
-	// 				//don't flood me!
-	// 				scanf("%9s", command_buffer);
-	// 				fflush(stdin);
-	// 				int command = parse_command(command_buffer);
-	// 				switch(command){
-	// 					case SHUTDOWN_COMMAND_CODE:
-	// 						running = 0;
-	// 						disconnect_clients(users);
-	// 						break;
-	// 					case START_COMMAND_CODE:
-	// 						printf("New connections allowed\n");
-	// 						accepting_new_connections = 1;
-	// 						break;
-	// 					case STOP_COMMAND_CODE:
-	// 						printf("New connections disallowed\n");
-	// 						accepting_new_connections = 0;
-	// 						break;
-	// 					case LIST_COMMAND_CODE:
-	// 						list_print(users);
-	// 						break;
-	// 				}
-	// 			}else if(i == server_socket_descriptor){//activity in the server entry port
-	// 				if ((connection_fd = accept(server_socket_descriptor, (struct sockaddr*)&remote_addr, &addr_size)) < 0){
-	// 					printf("Error in the incoming connection %s\n", strerror(errno));
-	// 				}
-	// 				if (accepting_new_connections){
-	// 					printf("New connection accepted\n");
-	// 					FD_SET(connection_fd, &master_set);
-	// 					number_of_fds++;
-	// 					number_of_fds = number_of_fds < MAX_OPENED_FDS ? number_of_fds : MAX_OPENED_FDS;
-	// 					char unknow_name[1] = {'\0'};
-	// 					node * new_user = list_create_node(connection_fd, unknow_name);
-	// 					list_add_last(new_user, users);
-	// 					//What happens if number_of_fds become greater than the max number of descriptor per process?
-	// 					//getrlimit(RLIMIT_NOFILE, ...) //max number of open files, acording to ulimit -n -> 1024 fds
-	// 				}else{
-	// 					char error_msg[] = "New connections are not allowed";
-	// 					send_error(connection_fd, (uchar *)error_msg);
-	// 					printf("New connection dropped\n");
-	// 					close(connection_fd);
-	// 				}
-	// 			}else{
-	// 				uchar *buffer = NULL;
-	// 				uint8_t type = ERROR_MSG;
-	// 				int bytes_readed = recv_msg(i, &buffer, &type);
-	// 				if (bytes_readed <= 0){
-	// 					printf("Client disconnected\n");
-	// 					FD_CLR(i, &master_set);
-	// 					list_remove_by_fd(i, users);
-	// 					close(i);
-	// 				}else{
-	// 					if(type == CONNECT_MSG){
-	// 						list_set_name(i, (char *)buffer, users);
-	// 					}else if(type == QUIT_MSG){
-	// 					}
-	// 					free(buffer);
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
 	disconnect_clients(users);
 	close(server_socket_descriptor);
 	list_delete(users);//clear list
@@ -258,15 +194,15 @@ int prepare_server (char *port)
 	return socket_descriptor;
 }
 
-void disconnect_clients(linked_list *list)
+void disconnect_clients(linked_list_t *list)
 {
-	for(node *i = list->head->next; i != list->tail; i = i->next){
-		if (strnlen(i->name, MAX_NICKNAME_LENGTH)){
-			printf("[SERVER] Disconnecting user %s: ", i->name);
+	for(node_t *i = list->head->next; i != list->tail; i = i->next){
+		if (strnlen(i->client->name, MAX_NICKNAME_LENGTH)){
+			printf("[SERVER] Disconnecting user %s: ", i->client->name);
 		}else{
-			printf("[SERVER] Disconnecting unknow user at fd = %d:", i->fd);
+			printf("[SERVER] Disconnecting unknow user at fd = %d:", i->client->fd);
 		}
-		if (close(i->fd) < 0){
+		if (close(i->client->fd) < 0){
 			printf(" FAILED!: %s\n", strerror(errno));
 		}else{
 			printf("OK!\n");
@@ -274,31 +210,38 @@ void disconnect_clients(linked_list *list)
 	}
 }
 
-node *manage_disconnect(int fd, linked_list *users)
+void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite)
 {
-	node *user = list_get_node_by_fd(fd, users);
-	close(user->fd);
-	if (strnlen(user->name, MAX_NICKNAME_LENGTH)){
-		printf("[SERVER] %s disconnected\n", user->name);
+	close(user->client->fd);
+	if (strnlen(user->client->name, MAX_NICKNAME_LENGTH)){
+		if (polite){
+			printf("[SERVER] %s disconnected\n", user->client->name);
+		}else{
+			printf("[SERVER] %s disconnected (EOF readed)\n", user->client->name);
+		}
 	}else{
-		printf("[SERVER] User connected with fd = %d disconnected\n", user->fd);
+		if(polite){
+			printf("[SERVER] User connected with fd = %d disconnected\n", user->client->fd);
+		}else{
+			printf("[SERVER] fd = %d: EOF\n", user->client->fd);
+		}
 	}
-	return list_remove_node(user, users);
+	list_remove_node(user, users);
 }
 
-int manage_nick_change_by_fd(int fd, char *name, linked_list *users)
+int manage_nick_change_by_fd(int fd, char *name, linked_list_t *users)
 {
 	return nick_chage_by_fd(fd, name, users);
 }
 
-int manage_nick_change_by_node(node *i, char *name, linked_list *users)
+int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 {
 	char old_nick[16];
-	int old_nick_len = strnlen(i->name, MAX_NICKNAME_LENGTH);
+	int old_nick_len = strnlen(i->client->name, MAX_NICKNAME_LENGTH);
 
 	if (old_nick_len){
-		memset(old_nick, '\0', sizeof(char) * 16);
-		memcpy(old_nick, i->name, sizeof(char)*old_nick_len);
+		memset(old_nick, '\0', sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
+		memcpy(old_nick, i->client->name, sizeof(char)*MAX_NICKNAME_LENGTH);
 	}
 
 	int name_changed = nick_change_by_node(i, name, users);
@@ -306,27 +249,44 @@ int manage_nick_change_by_node(node *i, char *name, linked_list *users)
 		if (old_nick_len){
 			printf("[SERVER] %s changed nick to %s\n", old_nick, name);
 		}else{
-			printf("[SERVER] Client with fd = %d sets name to %s\n", i->fd, name);
+			printf("[SERVER] Client with fd = %d sets name to %s\n", i->client->fd, name);
 		}
 	}
 	return name_changed;
 }
 
-int nick_chage_by_fd(int fd, char *name, linked_list *users)
+int nick_chage_by_fd(int fd, char *name, linked_list_t *users)
 {
-	for(node *i = users->head->next; i != users->tail; i = i->next){
-		if (i->fd == fd){
+	for(node_t *i = users->head->next; i != users->tail; i = i->next){
+		if (i->client->fd == fd){
 			return nick_change_by_node(i, name, users);
 		}
 	}
 	return 0;
 }
 
-int nick_change_by_node(node *i, char *name, linked_list *users)
+int nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 {
-	if (!strncmp(i->name, name, MAX_NICKNAME_LENGTH)){
+	if (!strncmp(i->client->name, name, MAX_NICKNAME_LENGTH)){
 		return 0;
 	}
 	list_set_name_by_node(i, name, users);
 	return 1;
 }
+
+void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introduction)
+{
+	int introduction_length = strnlen((char *)(buffer->buffer + MAX_NICKNAME_LENGTH),
+										 buffer->message_length - MAX_NICKNAME_LENGTH);
+	//int nickname_length     = strnlen((char *) buffer->buffer, MAX_NICKNAME_LENGTH);
+
+	*introduction = (char*)malloc(sizeof(uchar) * (introduction_length + 1));
+	*nickname     = (char*)malloc(sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
+
+	memset((uchar*)*introduction, '\0', sizeof(uchar) * (introduction_length + 1));
+	memset((uchar*)*nickname,     '\0', sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
+
+	memcpy(*introduction, buffer->buffer, sizeof(uchar) * introduction_length);
+	memcpy(*nickname, 	  buffer->buffer, sizeof(uchar) * MAX_NICKNAME_LENGTH);
+}
+

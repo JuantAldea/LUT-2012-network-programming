@@ -15,7 +15,7 @@ int client(char *name, char *address, char *port)
 	if ((socket_descriptor = prepare_connection(address, port)) < 0){
 		return EXIT_FAILURE;
 	}
-	send_login(socket_descriptor, (uchar *)name);
+	send_login(socket_descriptor, name, name);
 	fd_set master_set;
 	fd_set ready_set;
 	FD_ZERO(&master_set);
@@ -24,6 +24,7 @@ int client(char *name, char *address, char *port)
 	FD_SET(STDIN_FILENO, &master_set);
 	FD_SET(socket_descriptor, &master_set);
 	int running = 1;
+	recv_buffer_t *buffer = (recv_buffer_t *)malloc(sizeof(recv_buffer_t));
 	while(running){
 		ready_set = master_set;
 		//select descriptors with activity
@@ -42,37 +43,40 @@ int client(char *name, char *address, char *port)
 					int command = client_parse_command(command_buffer);
 					switch(command){
 						case QUIT_COMMAND_CODE:
-							printf("Quitting...\n");
+							printf("Quitting...(if you are running valgrind you may see an invalid free() in the glibc 2.16 scope)\n");
 							running = 0;
 							break;
 						default:
 							break;
 					}
 				}else{
-					char *buffer = NULL;
-					uint8_t type;
-					int recv_bytes = recv_msg(i, (uchar**)&buffer, &type);
-					if (recv_bytes == 0){//read of size 0->disconect
-						printf("Conection closed by remote host\n");
-						close(socket_descriptor);
-						return EXIT_SUCCESS;
-					}else if (recv_bytes > 0){
-						if (type == ERROR_MSG){
-							printf("Error: %s\n", buffer);
-						}else{
-							printf("MSG: %s\n", buffer);
-						}
-						free(buffer);
-					}else{
-						printf("Error\n");
-						close(socket_descriptor);
-						return EXIT_FAILURE;
-					}
+					// //char *buffer = NULL;
+					// uint8_t type;
+					// int full_message = 0;
+					// int recv_bytes = recv_msg(i, buffer, &full_message);
+					// if (recv_bytes == 0){//read of size 0->disconect
+					// 	printf("Conection closed by remote host\n");
+					// 	close(socket_descriptor);
+					// 	return EXIT_SUCCESS;
+					// }
+					// else if (recv_bytes > 0){
+					// 	if (type == ERROR_MSG){
+					// 		printf("Error: %s\n", buffer->buffer);
+					// 	}else{
+					// 		printf("MSG: %s\n", buffer->buffer);
+					// 	}
+					// 	free(buffer);
+					// }else{
+					// 	printf("Error\n");
+					// 	close(socket_descriptor);
+					// 	return EXIT_FAILURE;
+					// }
 				}
 			}
 		}
 	}
-	send_disconnect(socket_descriptor, 0.1);
+	char broza[] = "Me voy";
+	send_disconnect(socket_descriptor, broza);
 	close(socket_descriptor);
 	return EXIT_SUCCESS;
 }

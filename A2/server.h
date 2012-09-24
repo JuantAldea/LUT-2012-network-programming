@@ -13,16 +13,18 @@ int prepare_server (char *port);
 
 int parse_command(char *command);
 
-node *manage_disconnect(int fd, linked_list *users);
+void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite);
 
-void disconnect_clients(linked_list *list);
+void disconnect_clients(linked_list_t *list);
 
-int manage_nick_change_by_fd(int fd, char *name, linked_list *users);
+int manage_nick_change_by_fd(int fd, char *name, linked_list_t *users);
 
-int manage_nick_change_by_node(node *i, char *name, linked_list *users);
+int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users);
 
-int nick_chage_by_fd(int fd, char *name, linked_list *users);
+int nick_chage_by_fd(int fd, char *name, linked_list_t *users);
 
-int nick_change_by_node(node *i, char *name, linked_list *users);
+int nick_change_by_node(node_t *i, char *name, linked_list_t *users);
+
+void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introduction);
 
 #endif

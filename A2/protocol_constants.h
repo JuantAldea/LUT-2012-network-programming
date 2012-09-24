@@ -4,12 +4,12 @@
 #define PROTOCOL_HEADER_SIZE 3
 
 #define CONNECT_MSG 	0
-#define TEXT_MSG     	1
-#define WHO_MSG     	2
+#define CHAT_MSG     	1
+#define WHO_REQUEST_MSG 2
 #define QUIT_MSG    	3
-#define HELLO_FWD_MSG	4
-#define NICK_MSG    	5
-#define MSG_FWD_MSG 	6
+#define INTRODUCTION_FWD_MSG	4
+#define ACCEPT_NICKNAME_MSG    	5
+#define CHAT_FWD_MSG 	6
 #define CLIENT_LIST_MSG 7
 #define CLIENT_LEFT_MSG 8
 #define ERROR_MSG 		9
