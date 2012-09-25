@@ -176,7 +176,9 @@ void recv_buffer_reset(recv_buffer_t *buffer)
 		buffer->message_length = -1;
 		buffer->message_type = -1;
 		buffer->received_bytes = 0;
-		free(buffer->buffer);
-		buffer->buffer = NULL;
+		if(buffer->buffer != NULL){
+			free(buffer->buffer);
+			buffer->buffer = NULL;
+		}
 	}
 }

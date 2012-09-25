@@ -27,4 +27,8 @@ int nick_change_by_node(node_t *i, char *name, linked_list_t *users);
 
 void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introduction);
 
+void broadcast_chat_message(char *nickname, char *message, linked_list_t *users);
+void broadcast_quit_message(char *nickname, char *message, linked_list_t *users);
+void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *users);
+void broadcast_connect_message(char *name, char *connect_msg, linked_list_t *users);
 #endif

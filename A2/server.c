@@ -1,4 +1,5 @@
 #include "server.h"
+#include <sys/ioctl.h>
 
 int parse_command(char *command)
 {
@@ -100,24 +101,61 @@ int server(char *port)
 					//the current node is about to be removed
 					//so next iteration need an small ajustment
 					node_t *previous = i->previous;
+					broadcast_quit_message(i->client->name, "disconnected (EOF readed)", users);
 					manage_disconnect_by_node(i, users, 0);
 					i = previous;
 				}else if (full_message){
-					if(i->buffer->message_type == CONNECT_MSG){
-						char *nickname = NULL;
-						char *introduction = NULL;
-						split_connect_message(i->buffer, &nickname, &introduction);
-						manage_nick_change_by_node(i, nickname, users);
-						free(nickname);
-						free(introduction);
-					}else if (i->buffer->message_type == QUIT_MSG){
-						node_t *previous = i->previous;
-						manage_disconnect_by_node(i, users, 1);
-						i = previous;
-					}else {
-						printf("%d %d %s\n", i->buffer->message_length,
-											 i->buffer->message_type,
-											 i->buffer->buffer);
+					if (strnlen(i->client->name, MAX_NICKNAME_LENGTH)){
+						switch(i->buffer->message_type){
+							case CONNECT_MSG:
+							{
+								char *nickname = NULL;
+								char *introduction = NULL;
+								split_connect_message(i->buffer, &nickname, &introduction);
+								if(manage_nick_change_by_node(i, nickname, users)){
+									//valid
+								}else{
+									//name in use
+								}
+								free(nickname);
+								free(introduction);
+							}
+								break;
+							case QUIT_MSG:
+							{
+								node_t *previous = i->previous;
+								broadcast_quit_message(i->client->name, (char*)i->buffer->buffer, users);
+								manage_disconnect_by_node(i, users, 1);
+								i = previous;
+							}
+								break;
+							case WHO_REQUEST_MSG:
+								printf("[SERVER] %s requested the user list.\n", i->client->name);
+								send_user_list(i->client->fd, users);
+								break;
+							case CHAT_MSG:
+								printf("[SERVER] <%s> %s\n", i->client->name, i->buffer->buffer);
+								broadcast_chat_message(i->client->name, (char*)i->buffer->buffer, users);
+								break;
+							default:
+								printf("DUMP: %d %d %s\n", i->buffer->message_length,
+												 i->buffer->message_type,
+												 i->buffer->buffer);
+								break;
+						}
+					}else{
+						if(i->buffer->message_type == CONNECT_MSG){
+							char *nickname = NULL;
+							char *introduction = NULL;
+							split_connect_message(i->buffer, &nickname, &introduction);
+							if(manage_nick_change_by_node(i, nickname, users)){
+								broadcast_connect_message(nickname, introduction, users);
+							}else{
+								//name in use
+							}
+							free(nickname);
+							free(introduction);
+						}
 					}
 					recv_buffer_reset(i->buffer);
 				}else{
@@ -248,6 +286,7 @@ int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 	if(name_changed){
 		if (old_nick_len){
 			printf("[SERVER] %s changed nick to %s\n", old_nick, name);
+			broadcast_nickname_change(old_nick, name, users);
 		}else{
 			printf("[SERVER] Client with fd = %d sets name to %s\n", i->client->fd, name);
 		}
@@ -286,7 +325,43 @@ void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introd
 	memset((uchar*)*introduction, '\0', sizeof(uchar) * (introduction_length + 1));
 	memset((uchar*)*nickname,     '\0', sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
 
-	memcpy(*introduction, buffer->buffer, sizeof(uchar) * introduction_length);
+	memcpy(*introduction, buffer->buffer + sizeof(uchar) * MAX_NICKNAME_LENGTH,
+		sizeof(uchar) * introduction_length);
 	memcpy(*nickname, 	  buffer->buffer, sizeof(uchar) * MAX_NICKNAME_LENGTH);
 }
 
+void broadcast_chat_message(char *nickname, char *message, linked_list_t *users)
+{
+	for (node_t *i = users->head->next; i != users->tail; i = i->next){
+		int sent_bytes = send_fwd_chat_msg(i->client->fd, nickname, message);
+	}
+}
+
+void broadcast_quit_message(char *nickname, char *message, linked_list_t *users)
+{
+	for (node_t *i = users->head->next; i != users->tail; i = i->next){
+		int sent_bytes = send_fwd_client_left(i->client->fd, nickname, message);
+	}
+}
+
+void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *users)
+{
+	char base_message[] = "changed name to";
+	int message_length = MAX_NICKNAME_LENGTH * 2 + strlen(base_message) + 3;
+	char *message = (char*)malloc(sizeof(char) * message_length);
+	memset(message, '\0', message_length);
+	sprintf(message, "%s %s %s", oldname, base_message, newname);
+	for (node_t *i = users->head->next; i != users->tail; i = i->next){
+		send_accept_nickname_change(i->client->fd, message);
+	}
+	free(message);
+}
+
+void broadcast_connect_message(char *name, char *introduction, linked_list_t *users)
+{
+	char base_message[] = "connected:";
+	printf("[SERVER] Broadcasting introduction: <%s> %s\n", name, introduction);
+	for (node_t *i = users->head->next; i != users->tail; i = i->next){
+		send_fwd_introduction_msg(i->client->fd, name, introduction);
+	}
+}

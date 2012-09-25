@@ -9,74 +9,152 @@ int client_parse_command(char *command)
 	}
 }
 
+int read_stdin(char **msg)
+{
+    int bytes_on_stdin;
+    ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
+    char *buffer = NULL;
+    buffer = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
+    fgets(buffer, bytes_on_stdin, stdin);
+    fgetc(stdin);//read newline
+    if(!strlen(buffer)){
+        *msg = (char*)malloc(sizeof(char));
+        *msg[0] = '\0';
+        return UNKOWN_COMMAND_CODE;
+    }
+
+    if (buffer[0] == '/'){
+        int command_code = UNKOWN_COMMAND_CODE;
+        if(!strncmp(&buffer[1], QUIT_COMMAND, strlen(QUIT_COMMAND))){
+            command_code = QUIT_COMMAND_CODE;
+        }else if(!strncmp(&buffer[1], NICK_COMMAND, strlen(NICK_COMMAND))){
+            command_code = NICK_COMMAND_CODE;
+        }else if(!strncmp(&buffer[1], CONNECT_COMMAND, strlen(CONNECT_COMMAND))){
+            command_code = CONNECT_COMMAND_CODE;
+        }else if(!strncmp(&buffer[1], WHO_COMMAND, strlen(WHO_COMMAND))){
+            command_code = WHO_COMMAND_CODE;
+        }
+        if(command_code != UNKOWN_COMMAND_CODE && command_code != WHO_COMMAND_CODE){
+            size_t first_white_space_index = strcspn(buffer, " ");
+            if (buffer[first_white_space_index] != '\0'){
+                int message_length = bytes_on_stdin - first_white_space_index; //-1+1 space and \0
+                *msg = (char*)malloc(sizeof(char) * message_length);
+                memset(*msg, '\0', message_length);
+                sprintf(*msg, "%s", &buffer[first_white_space_index + 1]);
+            }else{
+                *msg = (char*)malloc(sizeof(char));
+                *msg[0] = '\0';
+            }
+        }else{
+            *msg = (char*)malloc(sizeof(char));
+            *msg[0] = '\0';
+        }
+
+        free(buffer);
+        return command_code;
+    }else{//message
+        *msg = buffer;
+        return CHAT_COMMAND_CODE;
+    }
+    *msg = NULL;
+    return UNKOWN_COMMAND_CODE;
+}
+
 int client(char *name, char *address, char *port)
 {
-	int socket_descriptor = -1;
-	if ((socket_descriptor = prepare_connection(address, port)) < 0){
-		return EXIT_FAILURE;
-	}
-	send_login(socket_descriptor, name, name);
-	fd_set master_set;
 	fd_set ready_set;
-	FD_ZERO(&master_set);
 	FD_ZERO(&ready_set);
-	int number_of_fds = socket_descriptor + 1;// fd 0 is stdin, so we have one fd more
-	FD_SET(STDIN_FILENO, &master_set);
-	FD_SET(socket_descriptor, &master_set);
+	int not_connected = 1;
+	int socket_descriptor = -1;
+	while (not_connected){
+		FD_SET(STDIN_FILENO, &ready_set);
+		if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) < 0) {
+            perror("Error in select");
+            return EXIT_FAILURE;
+        }
+        if (FD_ISSET(STDIN_FILENO, &ready_set)){
+        	char *message = NULL;
+			int command = read_stdin(&message);
+			switch(command){
+				case QUIT_COMMAND_CODE:
+					free(message);
+					return 0;
+					break;
+				case CONNECT_COMMAND_CODE:
+					if ((socket_descriptor = prepare_connection(address, port)) < 0){
+						return EXIT_FAILURE;
+					}
+					send_login(socket_descriptor, name, message);
+					not_connected = 0;
+					break;
+				default:
+					printf("Not Connected.\n");
+					break;
+			}
+			free(message);
+        }
+	}
+
+
+	int number_of_fds = socket_descriptor + 1;
 	int running = 1;
 	recv_buffer_t *buffer = (recv_buffer_t *)malloc(sizeof(recv_buffer_t));
 	while(running){
-		ready_set = master_set;
+		FD_SET(STDIN_FILENO, &ready_set);
+		FD_SET(socket_descriptor, &ready_set);
 		//select descriptors with activity
 		if(select(number_of_fds, &ready_set, NULL, NULL, NULL) < 0) {
             perror("Error in select");
             return EXIT_FAILURE;
         }
-        //search if the descriptor i has activity
-		for (int i = 0; i < number_of_fds; i++){
-			if (FD_ISSET(i, &ready_set)){
-				if (i == STDIN_FILENO){
-					char command_buffer[10];
-					//don't flood me!
-					scanf("%9s", command_buffer);
-					fflush(stdin);
-					int command = client_parse_command(command_buffer);
-					switch(command){
-						case QUIT_COMMAND_CODE:
-							printf("Quitting...(if you are running valgrind you may see an invalid free() in the glibc 2.16 scope)\n");
-							running = 0;
-							break;
-						default:
-							break;
-					}
+
+		if (FD_ISSET(STDIN_FILENO, &ready_set)){
+			char *message = NULL;
+			int command = read_stdin(&message);
+			switch(command){
+				case QUIT_COMMAND_CODE:
+					send_disconnect(socket_descriptor, message);
+					running = 0;
+					break;
+				case WHO_COMMAND_CODE:
+					send_who_request(socket_descriptor);
+					break;
+				case CHAT_COMMAND_CODE:
+					send_chat(socket_descriptor, message);
+					break;
+				case CONNECT_COMMAND_CODE:
+					send_login(socket_descriptor, message, "");
+					break;
+				default:
+					break;
+			}
+			free(message);
+		}
+
+		if(FD_ISSET(socket_descriptor, &ready_set)){
+			recv_buffer_t *buffer = NULL;
+			buffer = (recv_buffer_t*)malloc(sizeof(recv_buffer_t));
+			memset(buffer, 0, sizeof(recv_buffer_t));
+			recv_buffer_reset(buffer);
+			int full_message = 0;
+			int recv_bytes = recv_msg(socket_descriptor, buffer, &full_message);
+			if (recv_bytes <= 0){
+				printf("Connection to the server lost\n");
+				running = 0;
+			}else{
+				if (buffer->message_type == CHAT_FWD_MSG){
+					print_chat_message(buffer);
+				}else if(buffer->message_type == INTRODUCTION_FWD_MSG){
+					print_introduction_message(buffer);
 				}else{
-					// //char *buffer = NULL;
-					// uint8_t type;
-					// int full_message = 0;
-					// int recv_bytes = recv_msg(i, buffer, &full_message);
-					// if (recv_bytes == 0){//read of size 0->disconect
-					// 	printf("Conection closed by remote host\n");
-					// 	close(socket_descriptor);
-					// 	return EXIT_SUCCESS;
-					// }
-					// else if (recv_bytes > 0){
-					// 	if (type == ERROR_MSG){
-					// 		printf("Error: %s\n", buffer->buffer);
-					// 	}else{
-					// 		printf("MSG: %s\n", buffer->buffer);
-					// 	}
-					// 	free(buffer);
-					// }else{
-					// 	printf("Error\n");
-					// 	close(socket_descriptor);
-					// 	return EXIT_FAILURE;
-					// }
+					printf("DUMP: |%s|\n", buffer->buffer);
 				}
 			}
+			recv_buffer_free(buffer);
 		}
 	}
-	char broza[] = "Me voy";
-	send_disconnect(socket_descriptor, broza);
+
+	printf("Quitting...(if you are running valgrind you may see an invalid free() in the glibc (2.16) scope)\n");
 	close(socket_descriptor);
 	return EXIT_SUCCESS;
 }
@@ -128,4 +206,18 @@ int prepare_connection(char *address, char *port)
     	return -1;
     }
     return socket_descriptor;
+}
+
+void print_chat_message(recv_buffer_t *buffer)
+{
+	char *name = strndup((char*)buffer->buffer, 15);
+	printf("<%s> %s\n", name, &buffer->buffer[15]);
+	free(name);
+}
+
+void print_introduction_message(recv_buffer_t *buffer)
+{
+	char *name = strndup((char*)buffer->buffer, 15);
+	printf("%s connected: %s\n", name, (char*)&buffer->buffer[15]);
+	free(name);
 }
