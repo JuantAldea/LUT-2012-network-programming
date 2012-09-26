@@ -45,18 +45,21 @@ int main(int argc, char **argv)
 			case 'n':
 				name = optarg;
 				break;
+			case ':':
+				printf ("Olvidas\n");
+				break;
 			case '?':
 				switch(optopt){
 					case 'p':
 					case 'l':
 						printf("-%c: Missing port.", optopt);
-					break;
+						break;
 					case 'h':
 						printf("-h: Missing IP address.\n");
-					break;
+						break;
 					case 'n':
 						printf("-n: Missing name.\n");
-					break;
+						break;
 				}
 				break;
 		}
@@ -108,6 +111,5 @@ int is_number(char *str, int base)
 		int return_value = (*str != '\0' && *endptr == '\0');
 		return return_value;
 	}
-	printf("Broza\n");
 	return 0;
 }

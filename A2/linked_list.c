@@ -61,8 +61,8 @@ void list_set_name_by_node(node_t *client, char *name, linked_list_t *list)
 		free(client->client->name);
 	}
 	int name_length = strnlen(name, MAX_NICKNAME_LENGTH);
-	client->client->name = (char*) malloc(sizeof(char) * (name_length+ 1));
-	memset(client->client->name, '\0', sizeof(char) * (name_length + 1));
+	client->client->name = (char*) malloc(sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
+	memset(client->client->name, '\0', sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
 	memcpy(client->client->name, name, sizeof(char) * name_length);
 }
 

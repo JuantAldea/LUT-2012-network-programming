@@ -1,14 +1,5 @@
 #include "client.h"
 
-int client_parse_command(char *command)
-{
-	if(!strncmp(command, QUIT_COMMAND, strlen(QUIT_COMMAND))){
-		return QUIT_COMMAND_CODE;
-	}else{
-		return UNKOWN_COMMAND_CODE;
-	}
-}
-
 int read_stdin(char **msg)
 {
     int bytes_on_stdin;
@@ -98,7 +89,6 @@ int client(char *name, char *address, char *port)
 
 	int number_of_fds = socket_descriptor + 1;
 	int running = 1;
-	recv_buffer_t *buffer = (recv_buffer_t *)malloc(sizeof(recv_buffer_t));
 	while(running){
 		FD_SET(STDIN_FILENO, &ready_set);
 		FD_SET(socket_descriptor, &ready_set);
@@ -117,15 +107,17 @@ int client(char *name, char *address, char *port)
 					running = 0;
 					break;
 				case WHO_COMMAND_CODE:
+					printf("kldjalksjdlaj\n");
 					send_who_request(socket_descriptor);
 					break;
 				case CHAT_COMMAND_CODE:
 					send_chat(socket_descriptor, message);
 					break;
-				case CONNECT_COMMAND_CODE:
+				case NICK_COMMAND_CODE:
 					send_login(socket_descriptor, message, "");
 					break;
 				default:
+					printf("UNKOWN COMMAND\n");
 					break;
 			}
 			free(message);
@@ -142,13 +134,7 @@ int client(char *name, char *address, char *port)
 				printf("Connection to the server lost\n");
 				running = 0;
 			}else{
-				if (buffer->message_type == CHAT_FWD_MSG){
-					print_chat_message(buffer);
-				}else if(buffer->message_type == INTRODUCTION_FWD_MSG){
-					print_introduction_message(buffer);
-				}else{
-					printf("DUMP: |%s|\n", buffer->buffer);
-				}
+				print_message(buffer);
 			}
 			recv_buffer_free(buffer);
 		}
@@ -220,4 +206,37 @@ void print_introduction_message(recv_buffer_t *buffer)
 	char *name = strndup((char*)buffer->buffer, 15);
 	printf("%s connected: %s\n", name, (char*)&buffer->buffer[15]);
 	free(name);
+}
+
+void print_user_list(recv_buffer_t *buffer)
+{
+	int number_of_nicks = buffer->message_length / 16;
+	printf ("########################### Users ###########################\n");
+	for (int i = 0; i < number_of_nicks; i++){
+		printf("%d: %s\n", i, (buffer->buffer + i * 16));
+	}
+	printf ("#############################################################\n");
+}
+
+void print_client_left(recv_buffer_t *buffer)
+{
+	printf("%s disconnected (%s)\n", buffer->buffer, (buffer->buffer + 16));
+
+}
+
+void print_message(recv_buffer_t *buffer)
+{
+	if(buffer->message_type == INTRODUCTION_FWD_MSG){
+		print_introduction_message(buffer);
+	}else if(buffer->message_type == ACCEPT_NICKNAME_MSG){
+
+	}else if (buffer->message_type == CHAT_FWD_MSG){
+		print_chat_message(buffer);
+	}else if(buffer->message_type == CLIENT_LIST_MSG){
+		print_user_list(buffer);
+	}else if(buffer->message_type == CLIENT_LEFT_MSG){
+		print_client_left(buffer);
+	}else{
+		printf("DUMP: |%s|\n", buffer->buffer);
+	}
 }

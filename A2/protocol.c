@@ -11,10 +11,6 @@ int send_msg(int socket, uchar *msg, int msg_size, int16_t type)
 	*(int16_t *)(wrapped_msg + sizeof(int32_t)) = htons(type);
 	memcpy((void *)(wrapped_msg + sizeof(int32_t) + sizeof(int16_t)), msg, sizeof(uchar)* msg_size);
 
-	//printf("Send %d\n", *(int32_t*)(wrapped_msg));
-	//printf("Send %d\n", *(int16_t*)(wrapped_msg + sizeof(int32_t)));
-	//printf("Send %s\n",  (char   *)(wrapped_msg + sizeof(int32_t) + sizeof(int16_t)));
-
 	int bytes_to_send = wrapped_size * sizeof(uchar);
 	int total_sent_bytes = 0;
 	while (total_sent_bytes < bytes_to_send){
@@ -64,9 +60,6 @@ int recv_msg(int socket, recv_buffer_t *buffer, int *full_message)
 		return 0;
 	}
 
-	//printf("%d\n", buffer->message_length);
-	//printf("%d\n", buffer->message_type);
-	//printf("%d\n", buffer->received_bytes);
 	//we have more or less than we need?
 	int32_t remaining_bytes = buffer->message_length - buffer->received_bytes;
 	size_t recv_size = (remaining_bytes > bytes_availables ? bytes_availables : remaining_bytes);
@@ -128,19 +121,18 @@ int send_chat(int socket, char *msg)
 int send_who_request(int socket)
 {
 	char zero = '\0';
-	//return send_msg(socket, (uchar *)&zero, WHO_REQUEST_MSG);
+	return send_msg(socket, (uchar *)&zero, 1, WHO_REQUEST_MSG);
 }
 
 int send_disconnect(int socket, char *quit_message)
 {
-	//return send_msg(socket, (uchar *)quit_message, QUIT_MSG);
+	return send_msg(socket, (uchar *)quit_message, strlen(quit_message) + 1, QUIT_MSG);
 }
 
 //SERVER TO CLIENT
 
 int send_fwd_introduction_msg(int socket, char *nickname, char *msg)
 {
-	printf("111111111111111%c\n", nickname[14]);
 	int msg_length = strlen(msg);
 	int buffer_size = 15 + msg_length + 1;
 	char *buffer = (char*)malloc(sizeof(char) * buffer_size);
@@ -173,15 +165,16 @@ int send_fwd_chat_msg(int socket, char *nickname, char *msg)
 
 int send_user_list(int socket, linked_list_t *users)
 {
-	char *msg = (char *)malloc(sizeof(char) * 16 * users->count);
+	int list_size =  sizeof(char) * 16 * users->count;
+	char *msg = (char *)malloc(list_size);
 	memset(msg, '\0', sizeof(char) * 16 * users->count);
 	int offset = 0;
 	for (node_t *i = users->head->next; i != users->tail; i = i->next){
-		memcpy(msg +  offset, i->client->name, 16);
+		printf("%s\n", i->client->name);
+		memcpy(msg + offset, i->client->name, 15);
 		offset += 16;
 	}
-	int bytes_sent = 1;
-	//TODO SEND MSG
+	int bytes_sent = send_msg(socket, (uchar*)msg, list_size, CLIENT_LIST_MSG);
 
 	free(msg);
 	return bytes_sent;
@@ -189,16 +182,18 @@ int send_user_list(int socket, linked_list_t *users)
 
 int send_fwd_client_left(int socket, char *nickname, char *quit_message)
 {
-	int message_length = strlen(quit_message) + 1 + 15;
+	int quit_message_length = strlen(quit_message);
+	int message_length = quit_message_length + 1 + 15 + 1;
 	char *buffer = (char*)malloc(sizeof(char) * message_length);
 	memset(buffer, '\0', message_length);
-	sprintf(buffer, "%s%s", nickname, quit_message);
-	int sent_bytes = 1;// send_msg(socket, (uchar *)buffer, CLIENT_LEFT_MSG);
+	memcpy(buffer, nickname, 15);
+	memcpy(buffer + 16, quit_message, quit_message_length);
+	int sent_bytes = send_msg(socket, (uchar *)buffer, message_length, CLIENT_LEFT_MSG);
 	free(buffer);
 	return sent_bytes;
 }
 
 int send_error(int socket, char *msg)
 {
-	return 1; //send_msg(socket, (uchar *)msg, ERROR_MSG);
+	return send_msg(socket, (uchar *)msg, strlen(msg) + 1, ERROR_MSG);
 }

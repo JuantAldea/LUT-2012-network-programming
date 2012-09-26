@@ -9,8 +9,7 @@
 #include "recv_buffer.h"
 #define uchar unsigned char
 #define MAX_NICKNAME_LENGTH 15
-//crear todas las funciones tipicas para los struct, init, free y demas
-//meter esto en vez de los campos fd y name de node_t
+
 typedef struct client_s client_t;
 struct client_s{
 	int fd;
@@ -19,8 +18,6 @@ struct client_s{
 
 typedef struct node_s node_t;
 struct node_s {
-	//char *name;
-	//int fd;
 	recv_buffer_t *buffer;
 	client_t *client;
 	node_t *next;
@@ -61,4 +58,5 @@ recv_buffer_t *list_get_buffer_by_fd(linked_list_t *list);
 void client_free(client_t *client);
 void recv_buffer_free(recv_buffer_t *buffer);
 void recv_buffer_reset(recv_buffer_t *buffer);
+
 #endif

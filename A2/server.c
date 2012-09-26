@@ -36,22 +36,22 @@ int server(char *port)
 	socklen_t addr_size;
 	addr_size = sizeof(remote_addr);
 
-	fd_set ready_set;
-	FD_ZERO(&ready_set);
-	FD_SET(STDIN_FILENO, &ready_set);
-	FD_SET(server_socket_descriptor, &ready_set);
+	fd_set descriptors_set;
+	FD_ZERO(&descriptors_set);
+	FD_SET(STDIN_FILENO, &descriptors_set);
+	FD_SET(server_socket_descriptor, &descriptors_set);
 
 	int max_fd = server_socket_descriptor;
 	int running = 1;//server running
 	int accepting_new_connections = 1;
 	printf("[SERVER] Listening for connections on port %s (fd = %d)\n", port, server_socket_descriptor);
 	while(running){
-		if(select(max_fd + 1, &ready_set, NULL, NULL, NULL) < 0) {
+		if(select(max_fd + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
 			perror("Error in select");
 			exit(EXIT_FAILURE);
 		}
 
-		if (FD_ISSET(STDIN_FILENO, &ready_set)){
+		if (FD_ISSET(STDIN_FILENO, &descriptors_set)){
 			char command_buffer[10];
 			memset(command_buffer, '\0', 10);
 			scanf("%9s", command_buffer);
@@ -75,7 +75,7 @@ int server(char *port)
 			}
 		}
 
-		if (FD_ISSET(server_socket_descriptor, &ready_set)){
+		if (FD_ISSET(server_socket_descriptor, &descriptors_set)){
 			int connection_fd = -1;
 			if ((connection_fd = accept(server_socket_descriptor, (struct sockaddr*)&remote_addr, &addr_size)) < 0){
 				printf("[SERVER] Error in the incoming connection %s\n", strerror(errno));
@@ -94,7 +94,7 @@ int server(char *port)
 		}
 
 		for(node_t *i = users->head->next; i != users->tail; i = i->next){
-			if (FD_ISSET(i->client->fd, &ready_set)){
+			if (FD_ISSET(i->client->fd, &descriptors_set)){
 				int full_message = 0;
 				int bytes_readed = recv_msg(i->client->fd, i->buffer, &full_message);
 				if (bytes_readed <= 0){
@@ -151,7 +151,11 @@ int server(char *port)
 							if(manage_nick_change_by_node(i, nickname, users)){
 								broadcast_connect_message(nickname, introduction, users);
 							}else{
-								//name in use
+								printf("[SERVER] Dropping client, nickname already in use\n");
+								send_error(i->client->fd, "Nickname already in use");
+								node_t *previous = i->previous;
+								manage_disconnect_by_node(i, users, 0);
+								i = previous;
 							}
 							free(nickname);
 							free(introduction);
@@ -164,12 +168,12 @@ int server(char *port)
 			}
 		}
 
-		FD_ZERO(&ready_set);
-		FD_SET(STDIN_FILENO, &ready_set);
-		FD_SET(server_socket_descriptor, &ready_set);
+		FD_ZERO(&descriptors_set);
+		FD_SET(STDIN_FILENO, &descriptors_set);
+		FD_SET(server_socket_descriptor, &descriptors_set);
 		max_fd = server_socket_descriptor;
 		for(node_t *i = users->head->next; i != users->tail; i = i->next){
-			FD_SET(i->client->fd, &ready_set);
+			FD_SET(i->client->fd, &descriptors_set);
 			max_fd = ((i->client->fd > max_fd) ? i->client->fd : max_fd);
 		}
 	}
@@ -267,11 +271,6 @@ void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite)
 	list_remove_node(user, users);
 }
 
-int manage_nick_change_by_fd(int fd, char *name, linked_list_t *users)
-{
-	return nick_chage_by_fd(fd, name, users);
-}
-
 int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 {
 	char old_nick[16];
@@ -294,22 +293,17 @@ int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 	return name_changed;
 }
 
-int nick_chage_by_fd(int fd, char *name, linked_list_t *users)
+int nick_change_by_node(node_t *node, char *name, linked_list_t *users)
 {
-	for(node_t *i = users->head->next; i != users->tail; i = i->next){
-		if (i->client->fd == fd){
-			return nick_change_by_node(i, name, users);
-		}
-	}
-	return 0;
-}
-
-int nick_change_by_node(node_t *i, char *name, linked_list_t *users)
-{
-	if (!strncmp(i->client->name, name, MAX_NICKNAME_LENGTH)){
+	if (!strncmp(node->client->name, name, MAX_NICKNAME_LENGTH)){
 		return 0;
 	}
-	list_set_name_by_node(i, name, users);
+	for(node_t *i = users->head->next; i != users->tail; i = i->next){
+		if (!strncmp(i->client->name, name, MAX_NICKNAME_LENGTH)){
+			return 0;
+		}
+	}
+	list_set_name_by_node(node, name, users);
 	return 1;
 }
 
@@ -317,30 +311,28 @@ void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introd
 {
 	int introduction_length = strnlen((char *)(buffer->buffer + MAX_NICKNAME_LENGTH),
 										 buffer->message_length - MAX_NICKNAME_LENGTH);
-	//int nickname_length     = strnlen((char *) buffer->buffer, MAX_NICKNAME_LENGTH);
-
 	*introduction = (char*)malloc(sizeof(uchar) * (introduction_length + 1));
 	*nickname     = (char*)malloc(sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
 
 	memset((uchar*)*introduction, '\0', sizeof(uchar) * (introduction_length + 1));
 	memset((uchar*)*nickname,     '\0', sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
 
-	memcpy(*introduction, buffer->buffer + sizeof(uchar) * MAX_NICKNAME_LENGTH,
-		sizeof(uchar) * introduction_length);
-	memcpy(*nickname, 	  buffer->buffer, sizeof(uchar) * MAX_NICKNAME_LENGTH);
+	memcpy(*introduction, buffer->buffer + sizeof(uchar) * MAX_NICKNAME_LENGTH, sizeof(uchar) * introduction_length);
+	memcpy(*nickname, buffer->buffer, sizeof(uchar) * MAX_NICKNAME_LENGTH);
 }
 
 void broadcast_chat_message(char *nickname, char *message, linked_list_t *users)
 {
 	for (node_t *i = users->head->next; i != users->tail; i = i->next){
-		int sent_bytes = send_fwd_chat_msg(i->client->fd, nickname, message);
+		send_fwd_chat_msg(i->client->fd, nickname, message);
 	}
 }
 
 void broadcast_quit_message(char *nickname, char *message, linked_list_t *users)
 {
+	printf("[SERVER] Broadcasting quit message from %s: %s\n", nickname, message);
 	for (node_t *i = users->head->next; i != users->tail; i = i->next){
-		int sent_bytes = send_fwd_client_left(i->client->fd, nickname, message);
+		send_fwd_client_left(i->client->fd, nickname, message);
 	}
 }
 
@@ -359,7 +351,6 @@ void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *user
 
 void broadcast_connect_message(char *name, char *introduction, linked_list_t *users)
 {
-	char base_message[] = "connected:";
 	printf("[SERVER] Broadcasting introduction: <%s> %s\n", name, introduction);
 	for (node_t *i = users->head->next; i != users->tail; i = i->next){
 		send_fwd_introduction_msg(i->client->fd, name, introduction);

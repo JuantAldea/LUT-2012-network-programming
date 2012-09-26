@@ -17,11 +17,7 @@ void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite);
 
 void disconnect_clients(linked_list_t *list);
 
-int manage_nick_change_by_fd(int fd, char *name, linked_list_t *users);
-
 int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users);
-
-int nick_chage_by_fd(int fd, char *name, linked_list_t *users);
 
 int nick_change_by_node(node_t *i, char *name, linked_list_t *users);
 
@@ -31,4 +27,5 @@ void broadcast_chat_message(char *nickname, char *message, linked_list_t *users)
 void broadcast_quit_message(char *nickname, char *message, linked_list_t *users);
 void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *users);
 void broadcast_connect_message(char *name, char *connect_msg, linked_list_t *users);
+
 #endif
