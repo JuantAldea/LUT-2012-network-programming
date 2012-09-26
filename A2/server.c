@@ -54,7 +54,10 @@ int server(char *port)
 		if (FD_ISSET(STDIN_FILENO, &descriptors_set)){
 			char command_buffer[10];
 			memset(command_buffer, '\0', 10);
-			scanf("%9s", command_buffer);
+			int readed_chars = scanf("%9s", command_buffer);
+			if (readed_chars < 0){
+
+			}
 			fflush(stdin);
 			int command = parse_command(command_buffer);
 			switch(command){
@@ -101,6 +104,7 @@ int server(char *port)
 					//the current node is about to be removed
 					//so next iteration need an small ajustment
 					node_t *previous = i->previous;
+					printf("kjashdjka\n");
 					broadcast_quit_message(i->client->name, "disconnected (EOF readed)", users);
 					manage_disconnect_by_node(i, users, 0);
 					i = previous;
@@ -112,10 +116,8 @@ int server(char *port)
 								char *nickname = NULL;
 								char *introduction = NULL;
 								split_connect_message(i->buffer, &nickname, &introduction);
-								if(manage_nick_change_by_node(i, nickname, users)){
-									//valid
-								}else{
-									//name in use
+								if(!manage_nick_change_by_node(i, nickname, users)){
+									send_error(i->client->fd, "Nickname is already in use");
 								}
 								free(nickname);
 								free(introduction);
@@ -190,7 +192,7 @@ int prepare_server (char *port)
 	struct addrinfo hints;
 	//fill all the fields with zero, just to be sure. Actually it crashed without this.
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET; //don't care ipv4 or ipv6
+	hints.ai_family = AF_INET6; //don't care ipv4 or ipv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; //automatic self ip
 	hints.ai_protocol = IPPROTO_TCP;
@@ -273,12 +275,12 @@ void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite)
 
 int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 {
-	char old_nick[16];
+	char old_nick[MAX_NICKNAME_LENGTH + 1];
 	int old_nick_len = strnlen(i->client->name, MAX_NICKNAME_LENGTH);
 
 	if (old_nick_len){
 		memset(old_nick, '\0', sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
-		memcpy(old_nick, i->client->name, sizeof(char)*MAX_NICKNAME_LENGTH);
+		memcpy(old_nick, i->client->name, sizeof(char) * MAX_NICKNAME_LENGTH);
 	}
 
 	int name_changed = nick_change_by_node(i, name, users);
@@ -309,16 +311,17 @@ int nick_change_by_node(node_t *node, char *name, linked_list_t *users)
 
 void split_connect_message(recv_buffer_t *buffer, char **nickname, char **introduction)
 {
-	int introduction_length = strnlen((char *)(buffer->buffer + MAX_NICKNAME_LENGTH),
-										 buffer->message_length - MAX_NICKNAME_LENGTH);
+	//int introduction_length = strnlen((char *)(buffer->buffer + MAX_NICKNAME_LENGTH), buffer->message_length - MAX_NICKNAME_LENGTH);
+	int introduction_length = buffer->message_length - MAX_NICKNAME_LENGTH;
+
 	*introduction = (char*)malloc(sizeof(uchar) * (introduction_length + 1));
 	*nickname     = (char*)malloc(sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
 
 	memset((uchar*)*introduction, '\0', sizeof(uchar) * (introduction_length + 1));
 	memset((uchar*)*nickname,     '\0', sizeof(uchar) * (MAX_NICKNAME_LENGTH + 1));
 
-	memcpy(*introduction, buffer->buffer + sizeof(uchar) * MAX_NICKNAME_LENGTH, sizeof(uchar) * introduction_length);
 	memcpy(*nickname, buffer->buffer, sizeof(uchar) * MAX_NICKNAME_LENGTH);
+	memcpy(*introduction, buffer->buffer + sizeof(uchar) * MAX_NICKNAME_LENGTH, sizeof(uchar) * introduction_length);
 }
 
 void broadcast_chat_message(char *nickname, char *message, linked_list_t *users)

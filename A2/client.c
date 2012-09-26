@@ -73,6 +73,7 @@ int client(char *name, char *address, char *port)
 					break;
 				case CONNECT_COMMAND_CODE:
 					if ((socket_descriptor = prepare_connection(address, port)) < 0){
+						free(message);
 						return EXIT_FAILURE;
 					}
 					send_login(socket_descriptor, name, message);
@@ -107,7 +108,6 @@ int client(char *name, char *address, char *port)
 					running = 0;
 					break;
 				case WHO_COMMAND_CODE:
-					printf("kldjalksjdlaj\n");
 					send_who_request(socket_descriptor);
 					break;
 				case CHAT_COMMAND_CODE:
@@ -150,7 +150,7 @@ int prepare_connection(char *address, char *port)
 	struct addrinfo hints;
 	//fill all the fields with zero, just to be sure. Actually it crashed without this.
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET; //don't care ipv4 or ipv6
+	hints.ai_family = AF_INET6; //don't care ipv4 or ipv6
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; //automatic self ip
 	hints.ai_protocol = IPPROTO_TCP;
@@ -196,32 +196,39 @@ int prepare_connection(char *address, char *port)
 
 void print_chat_message(recv_buffer_t *buffer)
 {
-	char *name = strndup((char*)buffer->buffer, 15);
-	printf("<%s> %s\n", name, &buffer->buffer[15]);
+	char *name = strndup((char*)buffer->buffer, MAX_NICKNAME_LENGTH);
+	printf("<%s> %s\n", name, &buffer->buffer[MAX_NICKNAME_LENGTH]);
 	free(name);
 }
 
 void print_introduction_message(recv_buffer_t *buffer)
 {
-	char *name = strndup((char*)buffer->buffer, 15);
-	printf("%s connected: %s\n", name, (char*)&buffer->buffer[15]);
-	free(name);
+	if (strlen((char*)&buffer->buffer[MAX_NICKNAME_LENGTH])){
+		printf("\n[CONNECTED] <%s>: %s\n", (char*)buffer->buffer, (char*)&buffer->buffer[MAX_NICKNAME_LENGTH]);
+	}else{
+		printf("\n[CONNECTED] %s\n", (char*)buffer->buffer);
+	}
 }
 
 void print_user_list(recv_buffer_t *buffer)
 {
-	int number_of_nicks = buffer->message_length / 16;
-	printf ("########################### Users ###########################\n");
-	for (int i = 0; i < number_of_nicks; i++){
-		printf("%d: %s\n", i, (buffer->buffer + i * 16));
-	}
-	printf ("#############################################################\n");
+	//aslñjdklashdlahsdl
 }
 
 void print_client_left(recv_buffer_t *buffer)
 {
-	printf("%s disconnected (%s)\n", buffer->buffer, (buffer->buffer + 16));
+	printf("%s disconnected (%s)\n", buffer->buffer, (buffer->buffer + MAX_NICKNAME_LENGTH));
 
+}
+
+void print_nickname_change(recv_buffer_t *buffer)
+{
+	printf("[NICK CHANGE] %s\n", buffer->buffer);
+}
+
+void print_error_msg(recv_buffer_t * buffer)
+{
+	printf("[ERROR] %s\n", buffer->buffer);
 }
 
 void print_message(recv_buffer_t *buffer)
@@ -229,13 +236,15 @@ void print_message(recv_buffer_t *buffer)
 	if(buffer->message_type == INTRODUCTION_FWD_MSG){
 		print_introduction_message(buffer);
 	}else if(buffer->message_type == ACCEPT_NICKNAME_MSG){
-
+		print_nickname_change(buffer);
 	}else if (buffer->message_type == CHAT_FWD_MSG){
 		print_chat_message(buffer);
 	}else if(buffer->message_type == CLIENT_LIST_MSG){
 		print_user_list(buffer);
 	}else if(buffer->message_type == CLIENT_LEFT_MSG){
 		print_client_left(buffer);
+	}else if(buffer->message_type == ERROR_MSG){
+		print_error_msg(buffer);
 	}else{
 		printf("DUMP: |%s|\n", buffer->buffer);
 	}

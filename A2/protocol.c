@@ -2,29 +2,19 @@
 
 int send_msg(int socket, uchar *msg, int msg_size, int16_t type)
 {
-	//uint32_t msg_size = strlen((char *)msg) + 1;// add \0 => + 1
 	uint32_t wrapped_size = msg_size + sizeof(int32_t) + sizeof(int16_t);
 	uchar * wrapped_msg = (uchar *) malloc(sizeof(uchar) * wrapped_size);
 	memset(wrapped_msg, '\0', sizeof(uchar) * wrapped_size);
 
 	*(int32_t *)wrapped_msg = htonl(wrapped_size);
 	*(int16_t *)(wrapped_msg + sizeof(int32_t)) = htons(type);
-	memcpy((void *)(wrapped_msg + sizeof(int32_t) + sizeof(int16_t)), msg, sizeof(uchar)* msg_size);
+	memcpy(wrapped_msg + sizeof(int32_t) + sizeof(int16_t), msg, sizeof(uchar) * msg_size);
 
-	int bytes_to_send = wrapped_size * sizeof(uchar);
+	int bytes_to_send = sizeof(uchar) * wrapped_size;
 	int total_sent_bytes = 0;
 	while (total_sent_bytes < bytes_to_send){
 		total_sent_bytes += send(socket, &(wrapped_msg[total_sent_bytes]), bytes_to_send - total_sent_bytes, 0);
 	}
-	printf("############DUMP en enviar:");
-	for (int j =  sizeof(int32_t) + sizeof(int16_t); j < bytes_to_send; j++){
-		if (wrapped_msg[j] == '\0'){
-			printf("-");
-		}else{
-			printf("%c", (char)wrapped_msg[j]);
-		}
-	}
-	printf("\n");
 	free(wrapped_msg);
 	return total_sent_bytes;
 }
@@ -36,7 +26,7 @@ int recv_msg(int socket, recv_buffer_t *buffer, int *full_message)
 	ioctl(socket, FIONREAD, &bytes_availables);
 	//todo check ioctl
 	if (buffer->received_bytes == 0){//we dont have the length header yet
-		if (bytes_availables < 6){//sizeof(int32_t)){//we dont have enough bytes for the header
+		if (bytes_availables < HEADER_SIZE){//sizeof(int32_t)){//we dont have enough bytes for the header
 			*full_message = 0;
 			buffer->message_length = -1;
 			buffer->received_bytes = 0;
@@ -46,12 +36,13 @@ int recv_msg(int socket, recv_buffer_t *buffer, int *full_message)
 		//so we can at least init the buffer and store the length of the message
 		recv_bytes = recv(socket, &buffer->message_length, sizeof(int32_t), 0);
 		recv_bytes = recv(socket, &buffer->message_type, sizeof(int16_t), 0);
-		buffer->message_length = ntohl(buffer->message_length) - 6;
+		buffer->message_length = ntohl(buffer->message_length) - HEADER_SIZE;
 		buffer->message_type   = ntohs(buffer->message_type);
-		buffer->buffer = (uchar *)malloc(sizeof(uchar) * buffer->message_length);
+		buffer->buffer = (uchar *)malloc(sizeof(uchar) * buffer->message_length + 1);
+		memset(buffer->buffer, '\0', buffer->message_length + 1);
 		ioctl(socket, FIONREAD, &bytes_availables);//update
 	}
-
+	//TODO ESTO ESTA BIEN? SI SOLO ME MANDAN 6 saldria por aqui y no esperaria por el resto
 	//received 0 bytes -> disconnect
 	if (bytes_availables == 0){
 		*full_message = 1;
@@ -68,15 +59,9 @@ int recv_msg(int socket, recv_buffer_t *buffer, int *full_message)
 	buffer->received_bytes += recv_bytes;
 	if (buffer->message_length == buffer->received_bytes){
 		*full_message = 1;
-		printf("DUMP en recibir:");
-		for (int j = 0; j < buffer->message_length; j++){
-			if (buffer->buffer[j] == '\0'){
-				printf("-");
-			}else{
-				printf("%c", (char)buffer->buffer[j]);
-			}
-		}
-		printf("\n");
+		// printf("RECV %d %d %d\n", buffer->message_length, buffer->received_bytes, buffer->message_type);
+		// printf("Dump recv:\n");
+		// buffer_dump(buffer->buffer, buffer->message_length);
 	}else{
 		*full_message = 0;
 	}
@@ -85,28 +70,15 @@ int recv_msg(int socket, recv_buffer_t *buffer, int *full_message)
 
 int send_login(int socket, char *username, char *introduction_message)
 {
-	uint32_t msg_length = 0;
-	uint32_t username_length = 0;
-	username_length = strnlen(username, 15);
-	msg_length = strlen(introduction_message) + 1; //add a free \0
-	int32_t buffer_size = msg_length + 15;//fixed nickname size, worst case
+	int32_t username_length = strnlen(username, MAX_NICKNAME_LENGTH);
+	int32_t introduction_message_length = strlen(introduction_message);
+	int32_t buffer_length = introduction_message_length + MAX_NICKNAME_LENGTH;//fixed nickname size, worst case
 
-	uchar *buffer = (uchar *)malloc(sizeof(uchar) * buffer_size);
-	memset(buffer, '\0', sizeof(uchar) * buffer_size);// 0 fill
-	buffer[buffer_size-1] = '\0';
-	memcpy(buffer, username, sizeof(uchar) * username_length);
-	memcpy(&(((char*)buffer)[15]), introduction_message, sizeof(uchar) * msg_length);
-	printf("Dump en send_login:");
-	for (int j = 0; j < buffer_size; j++){
-		if (buffer[j] == '\0'){
-			printf("-");
-		}else{
-			printf("%c", (char)buffer[j]);
-		}
-	}
-	printf("\n");
-	printf("Login size %d\n", buffer_size);
-	int bytes_sent = send_msg(socket, buffer, buffer_size, CONNECT_MSG);
+	uchar *buffer = (uchar *)malloc(sizeof(uchar) * buffer_length);
+	memset(buffer, '\0', sizeof(uchar) * buffer_length);
+	memcpy(buffer, username, sizeof(char) * username_length);
+	memcpy(((char*)buffer) + MAX_NICKNAME_LENGTH, introduction_message, sizeof(char) * introduction_message_length);
+	int bytes_sent = send_msg(socket, buffer, buffer_length, CONNECT_MSG);
 	free(buffer);
 	return bytes_sent;
 }
@@ -134,11 +106,16 @@ int send_disconnect(int socket, char *quit_message)
 int send_fwd_introduction_msg(int socket, char *nickname, char *msg)
 {
 	int msg_length = strlen(msg);
-	int buffer_size = 15 + msg_length + 1;
-	char *buffer = (char*)malloc(sizeof(char) * buffer_size);
+	int buffer_size = MAX_NICKNAME_LENGTH + msg_length;
+	char *buffer = (char *)malloc(sizeof(char) * buffer_size);
 	memset(buffer, '\0', sizeof(char) * buffer_size);
-	memcpy(buffer, nickname, sizeof(char) * 15);
-	memcpy(&buffer[15], msg, msg_length);
+	memcpy(buffer, nickname, sizeof(char) * MAX_NICKNAME_LENGTH);
+	memcpy(&buffer[MAX_NICKNAME_LENGTH], msg, msg_length);
+
+	// printf("%d:<%s> |%s|\n", msg_length, nickname, msg);
+	// printf("mensaje: %s\n", buffer);
+	// printf("mensaje: %.*s\n", msg_length, &buffer[MAX_NICKNAME_LENGTH]);
+
 	int sent_bytes = send_msg(socket, (uchar *)buffer, buffer_size, INTRODUCTION_FWD_MSG);
 	free(buffer);
 	return sent_bytes;
@@ -146,18 +123,17 @@ int send_fwd_introduction_msg(int socket, char *nickname, char *msg)
 
 int send_accept_nickname_change(int socket, char *message)
 {
-	printf("Accept nick change |%s|\n", message);
 	return send_msg(socket, (uchar *)message, strlen(message) + 1, ACCEPT_NICKNAME_MSG);
 }
 
 int send_fwd_chat_msg(int socket, char *nickname, char *msg)
 {
 	int msg_length = strlen(msg);
-	int buffer_length = 15 + msg_length + 1;
+	int buffer_length = MAX_NICKNAME_LENGTH + msg_length;
 	char *buffer = (char *)malloc(sizeof(char) * buffer_length);
 	memset(buffer, '\0', sizeof(char) * buffer_length);
-	memcpy(buffer, nickname, strnlen(nickname, 15));
-	memcpy(buffer + 15, msg, msg_length);
+	memcpy(buffer, nickname, strnlen(nickname, MAX_NICKNAME_LENGTH));
+	memcpy(buffer + MAX_NICKNAME_LENGTH, msg, msg_length);
 	int sent_bytes = send_msg(socket, (uchar *)buffer, buffer_length, CHAT_FWD_MSG);
 	free(buffer);
 	return sent_bytes;
@@ -165,29 +141,17 @@ int send_fwd_chat_msg(int socket, char *nickname, char *msg)
 
 int send_user_list(int socket, linked_list_t *users)
 {
-	int list_size =  sizeof(char) * 16 * users->count;
-	char *msg = (char *)malloc(list_size);
-	memset(msg, '\0', sizeof(char) * 16 * users->count);
-	int offset = 0;
-	for (node_t *i = users->head->next; i != users->tail; i = i->next){
-		printf("%s\n", i->client->name);
-		memcpy(msg + offset, i->client->name, 15);
-		offset += 16;
-	}
-	int bytes_sent = send_msg(socket, (uchar*)msg, list_size, CLIENT_LIST_MSG);
-
-	free(msg);
-	return bytes_sent;
+	//
 }
 
 int send_fwd_client_left(int socket, char *nickname, char *quit_message)
 {
 	int quit_message_length = strlen(quit_message);
-	int message_length = quit_message_length + 1 + 15 + 1;
-	char *buffer = (char*)malloc(sizeof(char) * message_length);
+	int message_length = quit_message_length + MAX_NICKNAME_LENGTH;
+	char *buffer = (char *)malloc(sizeof(char) * message_length);
 	memset(buffer, '\0', message_length);
-	memcpy(buffer, nickname, 15);
-	memcpy(buffer + 16, quit_message, quit_message_length);
+	memcpy(buffer, nickname, MAX_NICKNAME_LENGTH);
+	memcpy(buffer + MAX_NICKNAME_LENGTH, quit_message, quit_message_length);
 	int sent_bytes = send_msg(socket, (uchar *)buffer, message_length, CLIENT_LEFT_MSG);
 	free(buffer);
 	return sent_bytes;
@@ -196,4 +160,16 @@ int send_fwd_client_left(int socket, char *nickname, char *quit_message)
 int send_error(int socket, char *msg)
 {
 	return send_msg(socket, (uchar *)msg, strlen(msg) + 1, ERROR_MSG);
+}
+
+void buffer_dump(char * buffer, int length)
+{
+	for (int j = 0; j < length; j++){
+		if (buffer[j] == '\0'){
+			printf("-");
+		}else{
+			printf("%c", (char)buffer[j]);
+		}
+	}
+	printf("\n");
 }
