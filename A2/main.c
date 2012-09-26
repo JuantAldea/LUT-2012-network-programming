@@ -107,7 +107,7 @@ int is_number(char *str, int base)
 {
 	if (str != NULL){
 		char *endptr;
-		strtol(str, &endptr, base);
+		(void)strtol(str, &endptr, base);
 		int return_value = (*str != '\0' && *endptr == '\0');
 		return return_value;
 	}
