@@ -6,7 +6,9 @@ int read_stdin(char **msg)
     ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
     char *buffer = NULL;
     buffer = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
-    fgets(buffer, bytes_on_stdin, stdin);
+    if (fgets(buffer, bytes_on_stdin, stdin) == NULL){
+    	printf("Error while reading from STDIN\n");
+    }
     fgetc(stdin);//read newline
     if(!strlen(buffer)){
         *msg = (char*)malloc(sizeof(char));
