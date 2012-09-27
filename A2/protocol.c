@@ -141,7 +141,20 @@ int send_fwd_chat_msg(int socket, char *nickname, char *msg)
 
 int send_user_list(int socket, linked_list_t *users)
 {
-	//
+	//worst case: all nicknames have 15 chars and one extra char (\0) for each name
+	char *list = (char *)malloc(sizeof(char) *(MAX_NICKNAME_LENGTH * users->count + users->count));
+	memset(list, '\0', sizeof(char) * (MAX_NICKNAME_LENGTH * users->count + users->count));
+	char *list_offset = list;
+	int list_length = 0;
+	for (node_t *i = users->head->next; i != users->tail; i = i->next){
+		int current_name_length = strnlen(i->client->name, MAX_NICKNAME_LENGTH);
+		list_length += current_name_length + 1;
+		memcpy(list_offset, i->client->name, sizeof(char)  * current_name_length);
+		list_offset += current_name_length + 1;
+	}
+	int sent_bytes = send_msg(socket, (uchar *)list, list_length, CLIENT_LIST_MSG);
+	free(list);
+	return sent_bytes;
 }
 
 int send_fwd_client_left(int socket, char *nickname, char *quit_message)

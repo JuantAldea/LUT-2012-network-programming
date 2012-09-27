@@ -132,11 +132,11 @@ int server(char *port)
 							}
 								break;
 							case WHO_REQUEST_MSG:
-								printf("[SERVER] %s requested the user list.\n", i->client->name);
+								printf("[USER LIST] %s requested the user list.\n", i->client->name);
 								send_user_list(i->client->fd, users);
 								break;
 							case CHAT_MSG:
-								printf("[SERVER] <%s> %s\n", i->client->name, i->buffer->buffer);
+								printf("[CHAT] <%s> %s\n", i->client->name, i->buffer->buffer);
 								broadcast_chat_message(i->client->name, (char*)i->buffer->buffer, users);
 								break;
 							default:
@@ -153,7 +153,7 @@ int server(char *port)
 							if(manage_nick_change_by_node(i, nickname, users)){
 								broadcast_connect_message(nickname, introduction, users);
 							}else{
-								printf("[SERVER] Dropping client, nickname already in use\n");
+								printf("[DROPPING CLIENT] nickname already in use\n");
 								send_error(i->client->fd, "Nickname already in use");
 								node_t *previous = i->previous;
 								manage_disconnect_by_node(i, users, 0);
@@ -242,9 +242,9 @@ void disconnect_clients(linked_list_t *list)
 {
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
 		if (strnlen(i->client->name, MAX_NICKNAME_LENGTH)){
-			printf("[SERVER] Disconnecting user %s: ", i->client->name);
+			printf("[SHUTTING DOWN] Disconnecting user %s: ", i->client->name);
 		}else{
-			printf("[SERVER] Disconnecting unknow user at fd = %d:", i->client->fd);
+			printf("[SHUTTING DOWN] Disconnecting unknow user at fd = %d:", i->client->fd);
 		}
 		if (close(i->client->fd) < 0){
 			printf(" FAILED!: %s\n", strerror(errno));
@@ -259,15 +259,15 @@ void manage_disconnect_by_node(node_t *user, linked_list_t *users, int polite)
 	close(user->client->fd);
 	if (strnlen(user->client->name, MAX_NICKNAME_LENGTH)){
 		if (polite){
-			printf("[SERVER] %s disconnected\n", user->client->name);
+			printf("[DISCONNECTION] %s disconnected\n", user->client->name);
 		}else{
-			printf("[SERVER] %s disconnected (EOF readed)\n", user->client->name);
+			printf("[DISCONNECTION] %s disconnected (EOF readed)\n", user->client->name);
 		}
 	}else{
 		if(polite){
-			printf("[SERVER] User connected with fd = %d disconnected\n", user->client->fd);
+			printf("[DISCONNECTION] User connected with fd = %d disconnected\n", user->client->fd);
 		}else{
-			printf("[SERVER] fd = %d: EOF\n", user->client->fd);
+			printf("[DISCONNECTION] fd = %d: EOF\n", user->client->fd);
 		}
 	}
 	list_remove_node(user, users);
@@ -286,10 +286,10 @@ int manage_nick_change_by_node(node_t *i, char *name, linked_list_t *users)
 	int name_changed = nick_change_by_node(i, name, users);
 	if(name_changed){
 		if (old_nick_len){
-			printf("[SERVER] %s changed nick to %s\n", old_nick, name);
+			printf("[NICK CHANGE] %s changed nick to %s\n", old_nick, name);
 			broadcast_nickname_change(old_nick, name, users);
 		}else{
-			printf("[SERVER] Client with fd = %d sets name to %s\n", i->client->fd, name);
+			printf("[NEW LOGIN] Client with fd = %d sets name to %s\n", i->client->fd, name);
 		}
 	}
 	return name_changed;
@@ -354,7 +354,7 @@ void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *user
 
 void broadcast_connect_message(char *name, char *introduction, linked_list_t *users)
 {
-	printf("[SERVER] Broadcasting introduction: <%s> %s\n", name, introduction);
+	printf("[INTRODUCTION] Broadcasting introduction: <%s> %s\n", name, introduction);
 	for (node_t *i = users->head->next; i != users->tail; i = i->next){
 		send_fwd_introduction_msg(i->client->fd, name, introduction);
 	}

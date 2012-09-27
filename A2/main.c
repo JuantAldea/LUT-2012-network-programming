@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 				name = optarg;
 				break;
 			case ':':
-				printf ("Olvidas\n");
+				printf ("Something?\n");
 				break;
 			case '?':
 				switch(optopt){
@@ -107,7 +107,7 @@ int is_number(char *str, int base)
 {
 	if (str != NULL){
 		char *endptr;
-		(void)strtol(str, &endptr, base);
+			strtol(str, &endptr, base);
 		int return_value = (*str != '\0' && *endptr == '\0');
 		return return_value;
 	}

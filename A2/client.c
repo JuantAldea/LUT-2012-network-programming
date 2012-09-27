@@ -214,7 +214,13 @@ void print_introduction_message(recv_buffer_t *buffer)
 
 void print_user_list(recv_buffer_t *buffer)
 {
-	//aslñjdklashdlahsdl
+	printf ("#################################### USER LIST ####################################\n");
+	int buffer_offset = 0;
+	while (buffer_offset < buffer->message_length){
+		printf("%s\n", buffer->buffer + buffer_offset);
+		buffer_offset += strnlen(((char*)buffer->buffer) + buffer_offset, MAX_NICKNAME_LENGTH) + 1;//count \0
+	}
+	printf ("###################################################################################\n");
 }
 
 void print_client_left(recv_buffer_t *buffer)
