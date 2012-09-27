@@ -81,17 +81,17 @@ int server(char *port)
 		if (FD_ISSET(server_socket_descriptor, &descriptors_set)){
 			int connection_fd = -1;
 			if ((connection_fd = accept(server_socket_descriptor, (struct sockaddr*)&remote_addr, &addr_size)) < 0){
-				printf("[SERVER] Error in the incoming connection %s\n", strerror(errno));
+				printf("[NEW CONNECTION] Error in the incoming connection %s\n", strerror(errno));
 			}
 			if (accepting_new_connections){
-				printf("[SERVER] New client connected with fd = %d\n", connection_fd);
+				printf("[NEW CONNECTION] New client connected with fd = %d\n", connection_fd);
 				char unknow_name[1] = {'\0'};
 				node_t *new_user = list_create_node(connection_fd, unknow_name);
 				list_add_last(new_user, users);
 			}else{
 				char error_msg[] = "New connections are not allowed";
 				send_error(connection_fd, error_msg);
-				printf("[SERVER] New connection dropped.\n");
+				printf("[NEW CONNECTION] New connection dropped.\n");
 				close(connection_fd);
 			}
 		}
@@ -104,7 +104,6 @@ int server(char *port)
 					//the current node is about to be removed
 					//so next iteration need an small ajustment
 					node_t *previous = i->previous;
-					printf("kjashdjka\n");
 					broadcast_quit_message(i->client->name, "disconnected (EOF readed)", users);
 					manage_disconnect_by_node(i, users, 0);
 					i = previous;
@@ -165,7 +164,7 @@ int server(char *port)
 					}
 					recv_buffer_reset(i->buffer);
 				}else{
-					printf("Partial recv\n");
+					//printf("Partial recv\n");
 				}
 			}
 		}
@@ -249,7 +248,7 @@ void disconnect_clients(linked_list_t *list)
 		if (close(i->client->fd) < 0){
 			printf(" FAILED!: %s\n", strerror(errno));
 		}else{
-			printf("OK!\n");
+			printf(" OK!\n");
 		}
 	}
 }

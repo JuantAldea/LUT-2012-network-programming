@@ -225,7 +225,12 @@ void print_user_list(recv_buffer_t *buffer)
 
 void print_client_left(recv_buffer_t *buffer)
 {
-	printf("%s disconnected (%s)\n", buffer->buffer, (buffer->buffer + MAX_NICKNAME_LENGTH));
+	//if the client who left has said something
+	if (buffer->message_length > MAX_NICKNAME_LENGTH){
+		printf("[DISCONNECTED] %s: %s\n", buffer->buffer, (buffer->buffer + MAX_NICKNAME_LENGTH));
+	}else{
+		printf("[DISCONNECTED] %s\n", buffer->buffer);
+	}
 
 }
 

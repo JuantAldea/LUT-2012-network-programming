@@ -112,10 +112,6 @@ int send_fwd_introduction_msg(int socket, char *nickname, char *msg)
 	memcpy(buffer, nickname, sizeof(char) * MAX_NICKNAME_LENGTH);
 	memcpy(&buffer[MAX_NICKNAME_LENGTH], msg, msg_length);
 
-	// printf("%d:<%s> |%s|\n", msg_length, nickname, msg);
-	// printf("mensaje: %s\n", buffer);
-	// printf("mensaje: %.*s\n", msg_length, &buffer[MAX_NICKNAME_LENGTH]);
-
 	int sent_bytes = send_msg(socket, (uchar *)buffer, buffer_size, INTRODUCTION_FWD_MSG);
 	free(buffer);
 	return sent_bytes;
