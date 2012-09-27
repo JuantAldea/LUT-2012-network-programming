@@ -69,7 +69,9 @@ int server(char *port)
 			if (bytes_in_stdin){
 				//read (+ flush, all in one)
 				command_buffer = (char *)malloc(sizeof(char) * bytes_in_stdin);
-				fgets(command_buffer, bytes_in_stdin, stdin);;
+				if (NULL == fgets(command_buffer, bytes_in_stdin, stdin)){
+					printf("[ERROR] fgets failed\n");
+				}
 			}
 			if (bytes_in_stdin){
 				int command = parse_command(command_buffer);
@@ -426,7 +428,9 @@ void flush_stdin(void)
 	ioctl(STDIN_FILENO, FIONREAD, &bytes_in_stdin);
 	if (bytes_in_stdin){
 		char *garbage = (char *)malloc(sizeof(char) * bytes_in_stdin);
-		fgets(garbage, bytes_in_stdin, stdin);
+		if (NULL == fgets(garbage, bytes_in_stdin, stdin)){
+			printf("[ERROR] fgets failed\n");
+		}
 		free(garbage);
 	}
 }
