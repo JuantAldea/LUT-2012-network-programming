@@ -1,5 +1,6 @@
 #include "recv_buffer.h"
 
+//clean and init the data of the buffer
 void recv_buffer_reset(recv_buffer_t *buffer)
 {
 	if(buffer != NULL){
@@ -13,6 +14,7 @@ void recv_buffer_reset(recv_buffer_t *buffer)
 	}
 }
 
+//free the buffer memory
 void recv_buffer_free(recv_buffer_t *buffer)
 {
 	if (buffer != NULL){

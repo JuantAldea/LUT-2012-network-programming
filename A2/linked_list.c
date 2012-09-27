@@ -1,5 +1,6 @@
 #include "linked_list.h"
 
+//set-up the head and tail of the list
 void list_init(linked_list_t *list)
 {
 	list->count = 0;
@@ -15,6 +16,7 @@ void list_init(linked_list_t *list)
 	list->tail->previous = list->head;
 }
 
+//free the list
 void list_delete(linked_list_t *list)
 {
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
@@ -26,6 +28,7 @@ void list_delete(linked_list_t *list)
 	free(list->tail);
 }
 
+//build a new list node
 node_t *list_create_node(int fd, char *name)
 {
 	node_t *node = (node_t *)malloc(sizeof(node_t));
@@ -43,16 +46,7 @@ node_t *list_create_node(int fd, char *name)
 	return node;
 }
 
-void list_set_name_by_fd(int fd, char *name, linked_list_t *list)
-{
-	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		if (i->client->fd == fd){
-			list_set_name_by_node(i, name, list);
-			break;
-		}
-	}
-}
-
+//change the name of the client
 void list_set_name_by_node(node_t *client, char *name, linked_list_t *list)
 {
 	assert(client != list->head);
@@ -66,6 +60,7 @@ void list_set_name_by_node(node_t *client, char *name, linked_list_t *list)
 	memcpy(client->client->name, name, sizeof(char) * name_length);
 }
 
+//add node after the head
 void list_add_first(node_t *node, linked_list_t *list)
 {
 	list->count++;
@@ -75,6 +70,7 @@ void list_add_first(node_t *node, linked_list_t *list)
 	list->head->next = node;
 }
 
+//add node after the tail
 void list_add_last(node_t *node, linked_list_t *list)
 {
 	list->count++;
@@ -84,6 +80,7 @@ void list_add_last(node_t *node, linked_list_t *list)
 	list->tail->previous = node;
 }
 
+//remove node from the list
 void list_remove_node(node_t *node, linked_list_t *list)
 {
 	assert(node != list->head);
@@ -96,31 +93,12 @@ void list_remove_node(node_t *node, linked_list_t *list)
 	free(node);
 }
 
-void list_remove_by_fd(int fd, linked_list_t *list)
-{
-	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		if (i->client->fd == fd){
-			list_remove_node(i, list);
-			break;
-		}
-	}
-}
-
-void list_remove_by_name(char *name, linked_list_t *list)
-{
-	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		if (!strcmp(i->client->name, name)){
-			list_remove_node(i, list);
-			break;
-		}
-	}
-}
-
 void list_print(linked_list_t *list){
 	printf("########################## Clients #######################\n");
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
 		printf("%d: %s\n", i->client->fd, i->client->name);
 	}
+	printf("##########################################################\n");
 }
 
 void list_reverse_print(linked_list_t *list){
@@ -128,24 +106,5 @@ void list_reverse_print(linked_list_t *list){
 	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
 		printf("%d: %s\n", i->client->fd, i->client->name);
 	}
-}
-
-node_t *list_get_node_by_fd(int fd, linked_list_t *list)
-{
-	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
-		if(i->client->fd == fd){
-			return i;
-		}
-	}
-	return NULL;
-}
-
-node_t *list_get_node_by_name(char *name, linked_list_t *list)
-{
-	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
-		if(!strcmp(i->client->name, name)){
-			return i;
-		}
-	}
-	return NULL;
+	printf("##########################################################\n");
 }

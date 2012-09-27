@@ -28,4 +28,6 @@ void broadcast_quit_message(char *nickname, char *message, linked_list_t *users)
 void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *users);
 void broadcast_connect_message(char *name, char *connect_msg, linked_list_t *users);
 
+void flush_stdin(void);
+
 #endif
