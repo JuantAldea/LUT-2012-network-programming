@@ -1,3 +1,13 @@
+/*
+###############################################
+#		CT30A5001 - Network Programming		  #
+#		Assignment2: TCP multiuser chat		  #
+# 	Juan Antonio Aldea Armenteros (0404450)   #
+# 		juan.aldea.armenteros@lut.fi		  #
+#				linked_list.h				  #
+###############################################
+*/
+
 #ifndef __LINKED_LIST_H__
 #define __LINKED_LIST_H__
 

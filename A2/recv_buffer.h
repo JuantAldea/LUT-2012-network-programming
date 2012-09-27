@@ -1,3 +1,13 @@
+/*
+###############################################
+#		CT30A5001 - Network Programming		  #
+#		Assignment2: TCP multiuser chat		  #
+# 	Juan Antonio Aldea Armenteros (0404450)   #
+# 		juan.aldea.armenteros@lut.fi		  #
+#				recv_buffer.h				  #
+###############################################
+*/
+
 #ifndef __RECV_BUFFER_T__
 #define __RECV_BUFFER_T__
 
