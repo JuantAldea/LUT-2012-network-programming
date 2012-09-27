@@ -149,36 +149,3 @@ node_t *list_get_node_by_name(char *name, linked_list_t *list)
 	}
 	return NULL;
 }
-
-void recv_buffer_free(recv_buffer_t *buffer)
-{
-	if (buffer != NULL){
-		if (buffer->buffer != NULL){
-			free(buffer->buffer);
-		}
-		free(buffer);
-	}
-}
-
-void client_free(client_t *client)
-{
-	if (client != NULL){
-		if (client->name != NULL){
-			free(client->name);
-		}
-		free(client);
-	}
-}
-
-void recv_buffer_reset(recv_buffer_t *buffer)
-{
-	if(buffer != NULL){
-		buffer->message_length = -1;
-		buffer->message_type = -1;
-		buffer->received_bytes = 0;
-		if(buffer->buffer != NULL){
-			free(buffer->buffer);
-			buffer->buffer = NULL;
-		}
-	}
-}

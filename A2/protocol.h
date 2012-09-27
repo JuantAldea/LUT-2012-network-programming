@@ -7,8 +7,10 @@
 #include "common.h"
 #include "recv_buffer.h"
 #include "linked_list.h"
+
 #define MAX_NICKNAME_LENGTH 15
 #define HEADER_SIZE 6
+
 //base
 int send_msg(int socket, uchar *msg, int msg_size, int16_t type);
 int recv_msg(int socket, recv_buffer_t *buffer, int *full_message);

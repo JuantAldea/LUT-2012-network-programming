@@ -1,11 +1,13 @@
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
 TARGET := tcpchatclientserver
-OBJ := server.o client.o protocol.o linked_list.o
+OBJ := server.o client.o protocol.o linked_list.o recv_buffer.o client_t.o
 
 build: all
 
-all: $(OBJ) main.c
+all: $(TARGET)
+
+$(TARGET): $(OBJ) main.c
 	$(CC) $(CFLAGS) -o $(TARGET) main.c $(OBJ)
 
 %.o: %.c %.h
