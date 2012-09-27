@@ -17,8 +17,8 @@
 #include "common.h"
 #include "recv_buffer.h"
 #include "linked_list.h"
+#include  "common.h"
 
-#define MAX_NICKNAME_LENGTH 15
 #define HEADER_SIZE 6
 
 //base
