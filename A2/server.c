@@ -197,7 +197,6 @@ int prepare_server (char *port)
 	hints.ai_protocol = IPPROTO_TCP;
 	int error = 0;
 	struct addrinfo *res = NULL;
-	printf("|%s|\n", port);
 	if ((error = getaddrinfo(NULL, port, &hints, &res)) < 0){
 		printf("Getaddrinfo error: %s\n", gai_strerror(error));
 		exit(EXIT_FAILURE);

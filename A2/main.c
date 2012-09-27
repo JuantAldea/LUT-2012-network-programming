@@ -2,7 +2,7 @@
 #include "server.h"
 #include "client.h"
 
-int is_number(char *str, int base);
+int is_number(char *str, int base, int *number);
 
 void help(char *name);
 
@@ -20,12 +20,13 @@ int main(int argc, char **argv)
 		help(argv[0]);
 		return 0;
 	}
-
+	int port_number;
 	while ((optc = getopt(argc, argv, "l:h:p:n:")) != -1) {
 		switch (optc) {
 			case 'l':
-				if (is_number(optarg, 10)){
+				if (is_number(optarg, 10, &port_number)){
 					port = optarg;
+					printf("Port number: %d\n", port_number);
 				}else{
 					printf("Invalid port number: %s\n", optarg);
 				}
@@ -36,8 +37,9 @@ int main(int argc, char **argv)
 				client_mode = 1;
 				break;
 			case 'p':
-				if (is_number(optarg, 10)){
+				if (is_number(optarg, 10, &port_number)){
 					port = optarg;
+					printf("Port number: %d\n", port_number);
 				}else{
 					printf("Invalid port number: %s\n", optarg);
 				}
@@ -95,6 +97,7 @@ int main(int argc, char **argv)
 		printf("Wrong sintax\n");
 		help(argv[0]);
 	}
+	return 0;
 }
 
 void help(char *program){
@@ -103,12 +106,11 @@ void help(char *program){
 	return;
 }
 
-//
-int is_number(char *str, int base)
+int is_number(char *str, int base, int *number)
 {
 	if (str != NULL){
 		char *endptr;
-		strtol(str, &endptr, base);
+		*number = strtol(str, &endptr, base);
 		int return_value = (*str != '\0' && *endptr == '\0');
 		return return_value;
 	}
