@@ -8,20 +8,20 @@
 
 
 CC := gcc
-CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
+CFLAGS := -Wall -pedantic -std=gnu99 -g -pipe
 SERVER := aphorismserver
 CLIENT := aphorismclient
-OBJ :=  protocol.o linked_list.o
+OBJ :=  protocol.o linked_list.o common.o
 
 build: all
 
 all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(OBJ) server.o
-	$(CC) $(CFLAGS) -o $(TARGET) server.c $(OBJ) server.o
+	$(CC) $(CFLAGS) -o $(SERVER) $(OBJ) server.o
 
 $(CLIENT): $(OBJ) client.o
-	$(CC) $(CFLAGS) -o $(CLIENT) client.c $(OBJ) client.o
+	$(CC) $(CFLAGS) -o $(CLIENT) $(OBJ) client.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c -o $*.o

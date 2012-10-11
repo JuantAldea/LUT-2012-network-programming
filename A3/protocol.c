@@ -13,17 +13,7 @@
 int send_msg(int socket, struct sockaddr *addr, socklen_t address_len, uchar *msg, int8_t msg_size)
 {
 	int bytes_to_send = sizeof(uchar) * msg_size;
-	int total_sent_bytes = 0;
-	while (total_sent_bytes < bytes_to_send){
-		total_sent_bytes += sendto(socket,
-								   &(msg[total_sent_bytes]),
-								   bytes_to_send - total_sent_bytes,
-								   0,
-								   addr,
-								   address_len
-						   );
-	}
-	return total_sent_bytes;
+	return sendto(socket, msg, bytes_to_send, 0, addr,address_len);
 }
 
 int recv_msg(int socket, struct sockaddr *addr, socklen_t *address_len, char *buffer)
@@ -56,6 +46,7 @@ int send_APH(int socket, struct sockaddr *addr, socklen_t address_len, char *msg
 int send_ADD(int socket, struct sockaddr *addr, socklen_t address_len, char *msg)
 {
 	uchar full_msg[512];
+
 	int msg_size = snprintf((char*)full_msg, 512, "ADD%s", msg) + 1;
 	return send_msg(socket, addr, address_len, full_msg, msg_size < 512 ? msg_size : 512);
 }

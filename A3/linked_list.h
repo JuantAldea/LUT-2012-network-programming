@@ -19,7 +19,7 @@
 
 typedef struct node_s node_t;
 struct node_s {
-	time_t date_time;
+	char *date_time;
 	char *aphorism;
 	char *ip;
 	node_t *next;
@@ -41,7 +41,7 @@ void list_add_last (node_t *n, linked_list_t *list);
 void list_delete(linked_list_t *list);
 void list_remove_node(node_t *n, linked_list_t *list);
 
-node_t *list_create_node(char *ip, char *aphorism);
+node_t *list_create_node(char *ip, char *aphorism, char *date_time);
 
 void list_print(linked_list_t *list);
 void list_reverse_print(linked_list_t *list);

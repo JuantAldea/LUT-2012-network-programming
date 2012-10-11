@@ -18,4 +18,6 @@
 #include "system_headers.h"
 #include "protocol.h"
 
+void flush_stdin(void);
+
 #endif

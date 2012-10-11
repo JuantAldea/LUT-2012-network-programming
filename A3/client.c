@@ -13,7 +13,7 @@ int client(char *command, char *address, char *port)
 {
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET; //only IPv6 allowed
+	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_protocol = IPPROTO_UDP;
@@ -22,7 +22,7 @@ int client(char *command, char *address, char *port)
 	int error = 0;
 	struct addrinfo *res = NULL;
 	if ((error = getaddrinfo(address, port, &hints, &res)) < 0){
-		perror(gai_strerror(error));
+		printf("Getaddrinfo error: %s\n", gai_strerror(error));
 		freeaddrinfo(res);
 		return EXIT_FAILURE;
 	}
@@ -43,11 +43,18 @@ int client(char *command, char *address, char *port)
 	    printf("error\n");
     	return -1;
     }
+	struct timeval timeout;
+	memset(&timeout, 0, sizeof(struct timeval));
+  	timeout.tv_sec = 1;
+
+	if (setsockopt(socket_descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout,  sizeof(timeout))){
+		perror("Error Setting the timeout");
+		return EXIT_FAILURE;
+	}
 
 	char recvbuffer[512];
 	struct sockaddr_storage client_addr;
 	socklen_t address_len = sizeof(client_addr);
-
 
 	if (!strncmp(command, "ADD", 3)){
 		char aphorism_buffer[509];
@@ -56,30 +63,40 @@ int client(char *command, char *address, char *port)
 		if (NULL == fgets(aphorism_buffer, 508, stdin)){
 			printf("[ERROR] fgets failed\n");
 		}
+		flush_stdin();
 		int aph_len = strlen(aphorism_buffer);
-		if (aph_len< 10){
+		if (aph_len < 0){
 			freeaddrinfo(res);
-			printf("Aphorism too short\n");
+			printf("[ERROR] Aphorism too short\n");
 			return 0;
 		}else{
 			aphorism_buffer[aph_len - 1] = '\0';
 		}
 		send_ADD(socket_descriptor, ptr->ai_addr, ptr->ai_addrlen, aphorism_buffer);
-    	recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len);
-   		if (!strncmp(recvbuffer, "AOK", 3)){
-   			printf("Aphorims added\n");
-   		}else if (!strncmp(recvbuffer, "ERR", 3)){
-			printf("[ERROR] %s\n", recvbuffer + 3);
-   		}
+		memset(recvbuffer, 0, 512);
+    	if(recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len)>= 0){
+	   		if (!strncmp(recvbuffer, "AOK", 3)){
+	   			printf("[SERVER] Aphorism added!\n");
+	   		}else if (!strncmp(recvbuffer, "ERR", 3)){
+				printf("[ERROR] %s\n", recvbuffer + 3);
+	   		}
+    	}else{
+    		perror("[ERROR]");
+    	}
+
+
 	}else if (!strncmp(command, "GET", 3)){
 		send_GET(socket_descriptor, ptr->ai_addr, ptr->ai_addrlen);
-  	 	memset(recvbuffer, 0, 512);
-		recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len);
-		if (!strncmp(recvbuffer, "APH", 3)){
-   			printf("[APH]%s\n", recvbuffer + 3);
-   		}else if (!strncmp(recvbuffer, "ERR", 3)){
-			printf("[ERROR] %s\n", recvbuffer + 3);
-   		}
+		memset(recvbuffer, 0, 512);
+		if(recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len)>= 0){
+			if (!strncmp(recvbuffer, "APH", 3)){
+					printf("[APH]%s\n", recvbuffer + 3);
+				}else if (!strncmp(recvbuffer, "ERR", 3)){
+				printf("[ERROR] %s\n", recvbuffer + 3);
+				}
+		}else{
+			perror("[ERROR]");
+		}
 	}
 
     freeaddrinfo(res);

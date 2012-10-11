@@ -26,6 +26,9 @@ int parse_command(char *command);
 void flush_stdin(void);
 
 int is_number(char *str, int base, int *number);
+
 void help(char *name);
+
+void write_to_database(FILE *database, node_t *aph);
 
 #endif
