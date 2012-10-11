@@ -7,10 +7,9 @@
 #                   client.c                  #
 ###############################################
 */
+#include "common.h"
 
-#include "client.h"
-
-int client(char *name, char *address, char *port)
+int client(char *command, char *address, char *port)
 {
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
@@ -18,6 +17,7 @@ int client(char *name, char *address, char *port)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_protocol = IPPROTO_UDP;
+
 
 	int error = 0;
 	struct addrinfo *res = NULL;
@@ -44,8 +44,131 @@ int client(char *name, char *address, char *port)
     	return -1;
     }
 
-    sendto(socket_descriptor, &dgram, 9, 0, ptr->ai_addr, ptr->ai_addrlen);
+	char recvbuffer[512];
+	struct sockaddr_storage client_addr;
+	socklen_t address_len = sizeof(client_addr);
+
+
+	if (!strncmp(command, "ADD", 3)){
+		char aphorism_buffer[509];
+		memset(aphorism_buffer, 0, 509);
+
+		if (NULL == fgets(aphorism_buffer, 508, stdin)){
+			printf("[ERROR] fgets failed\n");
+		}
+		int aph_len = strlen(aphorism_buffer);
+		if (aph_len< 10){
+			freeaddrinfo(res);
+			printf("Aphorism too short\n");
+			return 0;
+		}else{
+			aphorism_buffer[aph_len - 1] = '\0';
+		}
+		send_ADD(socket_descriptor, ptr->ai_addr, ptr->ai_addrlen, aphorism_buffer);
+    	recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len);
+   		if (!strncmp(recvbuffer, "AOK", 3)){
+   			printf("Aphorims added\n");
+   		}else if (!strncmp(recvbuffer, "ERR", 3)){
+			printf("[ERROR] %s\n", recvbuffer + 3);
+   		}
+	}else if (!strncmp(command, "GET", 3)){
+		send_GET(socket_descriptor, ptr->ai_addr, ptr->ai_addrlen);
+  	 	memset(recvbuffer, 0, 512);
+		recvfrom(socket_descriptor, recvbuffer, 512, 0, (struct sockaddr*)&client_addr, &address_len);
+		if (!strncmp(recvbuffer, "APH", 3)){
+   			printf("[APH]%s\n", recvbuffer + 3);
+   		}else if (!strncmp(recvbuffer, "ERR", 3)){
+			printf("[ERROR] %s\n", recvbuffer + 3);
+   		}
+	}
+
     freeaddrinfo(res);
 	close(socket_descriptor);
 	return EXIT_SUCCESS;
+}
+
+
+int is_number(char *str, int base, int *number);
+void help_client(char *command);
+
+int main(int argc, char **argv)
+{
+	int optc = -1;
+	char *command = NULL;
+	char *port = NULL;
+	char *addr = NULL;
+	int port_number;
+
+	while ((optc = getopt(argc, argv, "h:p:c:")) != -1) {
+		switch (optc) {
+			case 'h':
+				addr = optarg;
+				break;
+			case 'p':
+				if (is_number(optarg, 10, &port_number)){
+					port = optarg;
+					printf("Port number: %d\n", port_number);
+				}else{
+					printf("Invalid port number: %s\n", optarg);
+				}
+				break;
+			case 'c':
+				command = optarg;
+				break;
+			case ':':
+				printf ("Something?\n");
+				break;
+			case '?':
+				switch(optopt){
+					case 'p':
+					case 'l':
+						printf("-%c: Missing port.", optopt);
+						break;
+					case 'h':
+						printf("-h: Missing IP address.\n");
+						break;
+					case 'n':
+						printf("-n: Missing command.\n");
+						break;
+				}
+				break;
+		}
+	}
+
+	int missing_params = 0;
+	if (addr == NULL){
+		printf("Server address need: -h <address>\n");
+		missing_params = 1;
+	}
+	if(port == NULL){
+		printf("Remote port need: -p <port>\n");
+		missing_params = 1;
+	}
+	if (command == NULL){
+		printf("Command need: -n <command>\n");
+		missing_params = 1;
+	}
+	if (!missing_params){
+		return client(command, addr, port);
+	}else{
+		help_client("Instructions: ");
+	}
+
+	return 0;
+}
+
+void help_client(char *program){
+	printf("%s -h <host address> -p <port> -c <command>\n", program);
+	return;
+}
+
+int is_number(char *str, int base, int *number)
+{
+	if (str != NULL){
+		char *endptr;
+		*number = strtol(str, &endptr, base);
+		int return_value = (*str != '\0' && *endptr == '\0');
+		return return_value;
+	}
+	return 0;
 }

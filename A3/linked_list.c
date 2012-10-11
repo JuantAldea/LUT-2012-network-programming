@@ -50,7 +50,7 @@ node_t *list_create_node(char *ip, char *aphorism)
 	node->ip = (char *)malloc(addr_length * sizeof(char));
 	sprintf(node->ip, "%s", ip);
 	sprintf(node->aphorism, "%s", aphorism);
-	node->date_time = time(NULL);
+	time(&node->date_time);
 	node->next = NULL;
 	node->previous = NULL;
 	return node;
@@ -103,7 +103,9 @@ void list_print(linked_list_t *list)
 {
 	printf("########################## Aphorisms #######################\n");
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		printf("%s: %s %s\n", ctime(&i->date_time), i->aphorism, i->ip);
+		char *date_time = ctime(&i->date_time);
+		date_time[strlen(date_time) - 1] = '\0';
+		printf("%s: %s %s\n", date_time, i->aphorism, i->ip);
 	}
 	printf("############################################################\n");
 }
@@ -112,7 +114,9 @@ void list_reverse_print(linked_list_t *list)
 {
 	printf("########################## Aphorisms #######################\n");
 	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
-		printf("%s: %s %s\n", ctime(&i->date_time),i->aphorism, i->ip);
+		char *date_time = ctime(&i->date_time);
+		date_time[strlen(date_time) - 1] = '\0';
+		printf("%s: %s %s\n", date_time, i->aphorism, i->ip);
 	}
 	printf("############################################################\n");
 }

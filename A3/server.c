@@ -11,14 +11,55 @@
 #include "server.h"
 #include <sys/ioctl.h>
 
+#include "common.h"
+#include "server.h"
+
+int main(int argc, char **argv)
+{
+	int optc = -1;
+	char *port = NULL;
+	char *addr = NULL;
+
+	int port_number;
+	while ((optc = getopt(argc, argv, "p:")) != -1) {
+		switch (optc) {
+			case 'p':
+				if (is_number(optarg, 10, &port_number)){
+					port = optarg;
+					printf("Port number: %d\n", port_number);
+				}else{
+					printf("Invalid port number: %s\n", optarg);
+				}
+				break;
+			case ':':
+				printf ("Something?\n");
+				break;
+			case '?':
+				switch(optopt){
+					case 'p':
+						printf("-%c: Missing port.", optopt);
+						break;
+				}
+				break;
+		}
+	}
+
+
+	if (port != NULL){
+			return server(port);
+	}else{
+		printf("Wrong sintax\n");
+		help(argv[0]);
+	}
+	return 0;
+}
+
+
 int parse_command(char *command)
 {
+	printf("%s\n", command);
 	if (!strcmp(command, LIST_COMMAND_STR)){
 		return LIST_COMMAND_CODE;
-	}else if(!strcmp(command, START_COMMAND_STR)){
-		return START_COMMAND_CODE;
-	}else if(!strcmp(command, STOP_COMMAND_STR)){
-		return STOP_COMMAND_CODE;
 	}else if(!strcmp(command, SHUTDOWN_COMMAND_STR)){
 		return SHUTDOWN_COMMAND_CODE;
 	}else{
@@ -70,7 +111,7 @@ int server(char *port)
 						running = 0;
 						break;
 					case LIST_COMMAND_CODE:
-						//list_print(list_aphorisms);
+						list_print(list_aphorisms);
 						break;
 					default:
 						printf("[ERROR] Unknow command\n");
@@ -87,12 +128,13 @@ int server(char *port)
 		}
 		//check activity in the listening socket
 		if (FD_ISSET(listening_socket, &descriptors_set)){
-			char recvbuffer[509];
+			char recvbuffer[512];
 			int size = 512;
 			struct sockaddr_storage client_addr;
 			socklen_t address_len = sizeof(client_addr);
 
 			int error = recvfrom(listening_socket, recvbuffer, size, 0, (struct sockaddr*)&client_addr, &address_len);
+			printf("|%s|\n", recvbuffer);
 			if(!strncmp(recvbuffer, "ADD", 3)){
 				if (strnlen(recvbuffer + 3, 509) >= 10){
 					char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
@@ -101,19 +143,27 @@ int server(char *port)
 					}
 					list_add_last(list_create_node(hbuf, recvbuffer + 3), list_aphorisms);
 					printf("[ADD] %s %s\n", hbuf, recvbuffer + 3);
-					send_AOK(listening_socket, (struct sockaddr*)&client_addr);
+					send_AOK(listening_socket, (struct sockaddr*)&client_addr, address_len);
 				}else{
 					printf("[ERROR] Rejecting aphorism of size < 10: %s\n", recvbuffer + 3);
 					//int send_ERR(int socket, struct addrinfo *addr, char *msg);
 				}
 			}else if(!strncmp(recvbuffer, "GET", 3)){
 				if (list_aphorisms->count){
-					int aphorism_index = rand() % list_aphorisms->count;
+					//int send_APH(int socket, struct sockaddr *addr, socklen_t address_len, char *msg);
+					send_APH(listening_socket,
+						(struct sockaddr*)&client_addr,
+						address_len,
+						list_get_node_by_index(rand() % list_aphorisms->count, list_aphorisms)->aphorism);
 				}else{
-					//send error empty list
+					printf("[ERROR] No aphorisms in the database\n");
+					char error_str[] = "No aphorisms\0";
+					send_ERR(listening_socket, (struct sockaddr*)&client_addr, address_len, error_str);
 				}
 			}else{
-
+				printf("[ERROR] Unkown command\n");
+				char error_str[] = "Unkown command\0";
+				send_ERR(listening_socket, (struct sockaddr*)&client_addr, address_len, error_str);
 			}
 			list_print(list_aphorisms);
 
@@ -196,4 +246,22 @@ void flush_stdin(void)
 		}
 		free(garbage);
 	}
+}
+
+
+void help(char *program){
+	printf("Server mode: %s -l <listening port>\n", program);
+	printf("Client mode: %s -h <host address> -p <port> -n <name>\n", program);
+	return;
+}
+
+int is_number(char *str, int base, int *number)
+{
+	if (str != NULL){
+		char *endptr;
+		*number = strtol(str, &endptr, base);
+		int return_value = (*str != '\0' && *endptr == '\0');
+		return return_value;
+	}
+	return 0;
 }

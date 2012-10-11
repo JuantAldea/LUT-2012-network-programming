@@ -13,22 +13,21 @@
 
 #include <stropts.h>
 #include <sys/ioctl.h>
-#include "protocol_constants.h"
 #include "common.h"
 #include "linked_list.h"
 #include  "common.h"
 
 #define HEADER_SIZE 6
 
-int send_msg(int socket, struct addrinfo *addr, uchar *msg, int8_t msg_size);
-int recv_msg(int socket, struct addrinfo *addr, char *buffer);
+int send_msg(int socket, struct sockaddr *addr, socklen_t address_len, uchar *msg, int8_t msg_size);
+int recv_msg(int socket, struct sockaddr *addr, socklen_t *address_len, char *buffer);
 
-int send_AOK(int socket, struct addrinfo *addr);
-int send_ERR(int socket, struct addrinfo *addr, char *msg);
+int send_AOK(int socket, struct sockaddr *addr, socklen_t address_len);
+int send_ERR(int socket, struct sockaddr *addr, socklen_t address_len, char *msg);
+int send_APH(int socket, struct sockaddr *addr, socklen_t address_len, char *msg);
 
-int send_APH(int socket, struct addrinfo *addr, char *msg);
-int send_ADD(int socket, struct addrinfo *addr, char *msg);
-int send_GET(int socket, struct addrinfo *addr);
+int send_ADD(int socket, struct sockaddr *addr, socklen_t address_len, char *msg);
+int send_GET(int socket, struct sockaddr *addr, socklen_t address_len);
 
 
 #endif

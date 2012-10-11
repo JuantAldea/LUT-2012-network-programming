@@ -10,10 +10,8 @@
 
 #include "common.h"
 #include "server.h"
-#include "client.h"
 
 int is_number(char *str, int base, int *number);
-
 void help(char *name);
 
 int main(int argc, char **argv)

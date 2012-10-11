@@ -25,4 +25,7 @@ int parse_command(char *command);
 
 void flush_stdin(void);
 
+int is_number(char *str, int base, int *number);
+void help(char *name);
+
 #endif

@@ -9,18 +9,22 @@
 
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
-TARGET := udpclientserver
-OBJ := server.o client.o protocol.o linked_list.o
+SERVER := aphorismserver
+CLIENT := aphorismclient
+OBJ :=  protocol.o linked_list.o
 
 build: all
 
-all: $(TARGET)
+all: $(SERVER) $(CLIENT)
 
-$(TARGET): $(OBJ) main.c
-	$(CC) $(CFLAGS) -o $(TARGET) main.c $(OBJ)
+$(SERVER): $(OBJ) server.o
+	$(CC) $(CFLAGS) -o $(TARGET) server.c $(OBJ) server.o
+
+$(CLIENT): $(OBJ) client.o
+	$(CC) $(CFLAGS) -o $(CLIENT) client.c $(OBJ) client.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c -o $*.o
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(SERVER) $(CLIENT)
