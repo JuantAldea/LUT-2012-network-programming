@@ -38,16 +38,12 @@ int client(char *name, char *address, char *port)
         break;
     }
 
-
-
-
     if (ptr == NULL){
 	    freeaddrinfo(res);
 	    printf("error\n");
     	return -1;
     }
 
-    char dgram[] = "ADDBroza\0";
     sendto(socket_descriptor, &dgram, 9, 0, ptr->ai_addr, ptr->ai_addrlen);
     freeaddrinfo(res);
 	close(socket_descriptor);

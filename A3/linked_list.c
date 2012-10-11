@@ -16,13 +16,15 @@ void list_init(linked_list_t *list)
 	list->count = 0;
 	list->head = (node_t *)malloc(sizeof(node_t));
 	list->tail = (node_t *)malloc(sizeof(node_t));
-	list->tail->client = NULL;
-	list->head->client = NULL;
-	list->tail->buffer = NULL;
-	list->head->buffer = NULL;
 	list->head->next = list->tail;
 	list->head->previous = NULL;
 	list->tail->next = NULL;
+	list->head->ip = NULL;
+	list->tail->ip = NULL;
+	list->head->aphorism = NULL;
+	list->tail->aphorism = NULL;
+	list->head->date_time = 0;
+	list->tail->date_time = 0;
 	list->tail->previous = list->head;
 }
 
@@ -39,35 +41,19 @@ void list_delete(linked_list_t *list)
 }
 
 //build a new list node
-node_t *list_create_node(int fd, char *name)
+node_t *list_create_node(char *ip, char *aphorism)
 {
 	node_t *node = (node_t *)malloc(sizeof(node_t));
-
-	node->client = (client_t *)malloc(sizeof(client_t));
-	int name_length = strnlen(name, MAX_NICKNAME_LENGTH);
-	node->client->name = (char *)malloc((name_length + 1) * sizeof(char));
-	memset(node->client->name, '\0', sizeof(char) * (name_length + 1));
-	strncpy(node->client->name, name, name_length);
-	node->client->fd = fd;
-	node->buffer = (recv_buffer_t *)malloc(sizeof(recv_buffer_t));
-	node->buffer->buffer = NULL;
-	node->buffer->message_length = -1;
-	node->buffer->received_bytes = 0;
+	int addr_length = strlen(ip) + 1;
+	int aphorism_length = strnlen(aphorism, 508) + 1;
+	node->aphorism = (char*)malloc(aphorism_length * sizeof(char));
+	node->ip = (char *)malloc(addr_length * sizeof(char));
+	sprintf(node->ip, "%s", ip);
+	sprintf(node->aphorism, "%s", aphorism);
+	node->date_time = time(NULL);
+	node->next = NULL;
+	node->previous = NULL;
 	return node;
-}
-
-//change the name of the client
-void list_set_name_by_node(node_t *client, char *name, linked_list_t *list)
-{
-	assert(client != list->head);
-	assert(client != list->tail);
-	if (client->client->name != NULL){
-		free(client->client->name);
-	}
-	int name_length = strnlen(name, MAX_NICKNAME_LENGTH);
-	client->client->name = (char*) malloc(sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
-	memset(client->client->name, '\0', sizeof(char) * (MAX_NICKNAME_LENGTH + 1));
-	memcpy(client->client->name, name, sizeof(char) * name_length);
 }
 
 //add node after the head
@@ -98,23 +84,37 @@ void list_remove_node(node_t *node, linked_list_t *list)
 	list->count--;
 	node->previous->next = node->next;
 	node->next->previous = node->previous;
-	recv_buffer_free(node->buffer);
-	client_free(node->client);
+	free(node->ip);
+	free(node->aphorism);
 	free(node);
 }
 
-void list_print(linked_list_t *list){
-	printf("########################## Clients #######################\n");
-	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		printf("%d: %s\n", i->client->fd, i->client->name);
+node_t* list_get_node_by_index(int index, linked_list_t *list)
+{
+	assert(index < list->count);
+	node_t *i = list->head;
+	for (int j = 0; j <= index; j++){
+		i = i->next;
 	}
-	printf("##########################################################\n");
+	return i;
 }
 
-void list_reverse_print(linked_list_t *list){
-	printf("########################## Clients #######################\n");
-	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
-		printf("%d: %s\n", i->client->fd, i->client->name);
+void list_print(linked_list_t *list)
+{
+	printf("########################## Aphorisms #######################\n");
+	for(node_t *i = list->head->next; i != list->tail; i = i->next){
+		printf("%s: %s %s\n", ctime(&i->date_time), i->aphorism, i->ip);
 	}
-	printf("##########################################################\n");
+	printf("############################################################\n");
 }
+
+void list_reverse_print(linked_list_t *list)
+{
+	printf("########################## Aphorisms #######################\n");
+	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
+		printf("%s: %s %s\n", ctime(&i->date_time),i->aphorism, i->ip);
+	}
+	printf("############################################################\n");
+}
+
+

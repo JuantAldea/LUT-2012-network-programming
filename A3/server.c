@@ -28,8 +28,9 @@ int parse_command(char *command)
 
 int server(char *port)
 {
-	linked_list_t *users = (linked_list_t*)malloc(sizeof(linked_list_t));
-	list_init(users);
+	srand(time(NULL));
+	linked_list_t *list_aphorisms = (linked_list_t*)malloc(sizeof(linked_list_t));
+	list_init(list_aphorisms);
 
 	int listening_socket = -1;
 	if ((listening_socket = prepare_server(port)) < 0){
@@ -69,7 +70,7 @@ int server(char *port)
 						running = 0;
 						break;
 					case LIST_COMMAND_CODE:
-						//list_print(users);
+						//list_print(list_aphorisms);
 						break;
 					default:
 						printf("[ERROR] Unknow command\n");
@@ -91,20 +92,31 @@ int server(char *port)
 			struct sockaddr_storage client_addr;
 			socklen_t address_len = sizeof(client_addr);
 
-			int asd = recvfrom(listening_socket, recvbuffer, size, 0, (struct sockaddr*)&client_addr, &address_len);
-			printf("|%d|\n", asd);
+			int error = recvfrom(listening_socket, recvbuffer, size, 0, (struct sockaddr*)&client_addr, &address_len);
 			if(!strncmp(recvbuffer, "ADD", 3)){
-				printf("añadiendo\n");
+				if (strnlen(recvbuffer + 3, 509) >= 10){
+					char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+					if (getnameinfo((struct sockaddr*)&client_addr, sizeof(struct sockaddr), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0){
+						printf("Aphorism received from host %s: %s", hbuf, recvbuffer + 3);
+					}
+					list_add_last(list_create_node(hbuf, recvbuffer + 3), list_aphorisms);
+					printf("[ADD] %s %s\n", hbuf, recvbuffer + 3);
+					send_AOK(listening_socket, (struct sockaddr*)&client_addr);
+				}else{
+					printf("[ERROR] Rejecting aphorism of size < 10: %s\n", recvbuffer + 3);
+					//int send_ERR(int socket, struct addrinfo *addr, char *msg);
+				}
 			}else if(!strncmp(recvbuffer, "GET", 3)){
-				printf("obteniendo\n");
+				if (list_aphorisms->count){
+					int aphorism_index = rand() % list_aphorisms->count;
+				}else{
+					//send error empty list
+				}
 			}else{
-			}
 
-			char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-			if (getnameinfo((struct sockaddr*)&client_addr, sizeof(struct sockaddr), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0){
-				printf("host=%s, serv=%s\n", hbuf, sbuf);
 			}
-    		printf("%s\n", recvbuffer);
+			list_print(list_aphorisms);
+
 		}
 		//reset the set
 		FD_ZERO(&descriptors_set);
@@ -114,7 +126,8 @@ int server(char *port)
 		//also set the max descriptor
 		max_fd = listening_socket;
 	}
-
+	list_delete(list_aphorisms);
+	free(list_aphorisms);
 	//at the end, disconnect everyone, clear all.
 	close(listening_socket);
 	return 0;

@@ -10,7 +10,7 @@
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
 TARGET := udpclientserver
-OBJ := server.o client.o protocol.o linked_list.o recv_buffer.o client_t.o
+OBJ := server.o client.o protocol.o linked_list.o
 
 build: all
 

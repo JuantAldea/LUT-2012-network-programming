@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include "protocol_constants.h"
 #include "common.h"
-#include "recv_buffer.h"
 #include "linked_list.h"
 #include  "common.h"
 
