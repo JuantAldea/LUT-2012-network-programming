@@ -36,10 +36,6 @@ int server(char *port)
 		exit(EXIT_FAILURE);
 	}
 
-	struct sockaddr_storage remote_addr;
-	socklen_t addr_size;
-	addr_size = sizeof(remote_addr);
-
 	fd_set descriptors_set;
 	FD_ZERO(&descriptors_set);
 	FD_SET(STDIN_FILENO, &descriptors_set);
@@ -47,7 +43,6 @@ int server(char *port)
 
 	int max_fd = listening_socket;
 	int running = 1;//server running
-	int accepting_new_connections = 1;
 	printf("[SERVER] Listening for connections on port %s (fd = %d)\n", port, listening_socket);
 	while(running){
 		if(select(max_fd + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
@@ -73,14 +68,6 @@ int server(char *port)
 					case SHUTDOWN_COMMAND_CODE:
 						running = 0;
 						break;
-					case START_COMMAND_CODE:
-						printf("[SERVER] New connections allowed\n");
-						accepting_new_connections = 1;
-						break;
-					case STOP_COMMAND_CODE:
-						printf("[SERVER] New connections disallowed\n");
-						accepting_new_connections = 0;
-						break;
 					case LIST_COMMAND_CODE:
 						//list_print(users);
 						break;
@@ -103,10 +90,20 @@ int server(char *port)
 			int size = 512;
 			struct sockaddr_storage client_addr;
 			socklen_t address_len = sizeof(client_addr);
-			int dgramlen = recvfrom(listening_socket, recvbuffer, size, 0, (struct sockaddr*)&client_addr, &address_len);
+
+			int asd = recvfrom(listening_socket, recvbuffer, size, 0, (struct sockaddr*)&client_addr, &address_len);
+			printf("|%d|\n", asd);
+			if(!strncmp(recvbuffer, "ADD", 3)){
+				printf("añadiendo\n");
+			}else if(!strncmp(recvbuffer, "GET", 3)){
+				printf("obteniendo\n");
+			}else{
+			}
+
 			char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-			if (getnameinfo((struct sockaddr*)&client_addr, sizeof(struct sockaddr), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
-    				printf("host=%s, serv=%s\n", hbuf, sbuf);
+			if (getnameinfo((struct sockaddr*)&client_addr, sizeof(struct sockaddr), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0){
+				printf("host=%s, serv=%s\n", hbuf, sbuf);
+			}
     		printf("%s\n", recvbuffer);
 		}
 		//reset the set
