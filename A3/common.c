@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment 3: UDP aphorisms          #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                   common.c                  #
+###############################################
+*/
+
 #include "common.h"
 
 void flush_stdin(void)

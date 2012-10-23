@@ -1,7 +1,7 @@
 /*
 ###############################################
 #        CT30A5001 - Network Programming      #
-#        Assignment2: TCP multiuser chat      #
+#        Assignment 3: UDP aphorisms          #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #              system_headers.h               #

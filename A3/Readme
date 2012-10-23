@@ -1,63 +1,61 @@
 ###############################################
 #        CT30A5001 - Network Programming      #
-#        Assignment2: TCP multiuser chat      #
+#        Assignment 3: UDP aphorisms          #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #                  Readme                     #
 ###############################################
 
 Description
-	- Implemented a multiclient server and a client for a chat service acording to the protocol specified in the requirements.
-	- The program supports up to 2GB messages (maximun of int32_t)
-	- It doesn't discard any messages due to protocol limitations
-		- No CRC or similar checksum data available
-	- Posible improvements not implemented:
-		- Add a timer to every partial receive for discarting data when the timer timeouts
-		- Save larger messages to a file
+	- UDP client and server that exchange aphorisms between them
 
 File description
 	.
-	├── client.c: Client main function, also function related to message presentation
-	├── client.h: Header of client.c
-	├── client_commands.h: Constants definition file for the client CLI
-	├── client_t.c: client_t type related functions
-	├── client_t.h: client_t type definition
-	├── common.h: meta-include file
-	├── linked_list.c: linked_list_t type functions
-	├── linked_list.h: linked_list_t type definition
-	├── main.c: Main file, client-server selector
-	├── Makefile: Build instructions
-	├── protocol.c: Functions for receive and send messages according to the protocol rules
-	├── protocol.h: Header of protocol.c
-	├── protocol_constants.h: Constans for protocol message types
-	├── Readme: This file, infinite recursion
-	├── recv_buffer.c: Functions related to the recv_buffer_t type
-	├── recv_buffer.h: Definition of the recv_buffer_t type
-	├── server.c: Server main function, server CLI and functions for dealing with the messages
-	├── server.h: Header of server.c
-	├── server_commands.h: Constants definition file for the server CLI
-	└── system_headers.h: Just a bunch of system includes
+	├── client.c Client main function, also function related to message presentation
+	├── common.c Only a function, fflush_stdin
+	├── common.h
+	├── linked_list.c client_t type related functions
+	├── linked_list.h
+	├── Makefile Build instructions
+	├── protocol.c Functions for receive and send messages according to the protocol rules
+	├── protocol.h
+	├── Readme This file, infinite recursion
+	├── server.c Server main function, server CLI and functions for dealing with the messages
+	├── server.h
+	├── server_commands.h Constants definition file for the server CLI
+	└── system_headers.h Just a bunch of system includes
 
 Implemented features
 	- Parameters managed by getopt
-	- Unlimited number of clients connected, user list is a double linked list (yeah, but only 1024 descriptors could be opened by default)
-	- stop/start commands availables in the server CLI
-
+	- Unlimited number aphorisms
+		- Managed with a double linked list
+	-Aphorisms are added to the database in real time
+		- Client blocks on recvfrom only for 5 seconds
+	- CLI
+		- list: list the full list of aphorisms
+		- quit: exit
 Building
 	- make || make all || make build
 	- clean target also included
 
 Execution
-	- server: ./tcpchatclientserver -l <listening port>
-	- client: ./tcpchatclientserver -h <host address> -p <port> -n <name>
+	- Client: ./aphorismclient -h <server address> -p <port number> -c <command>
+	- Server: ./aphorismserver -p <listening port>
 
 Questions:
- 	- Is there any limit for connection count on the server?
- 		Yes, a process can open up to getrlimit(RLIMIT_NOFILE, ...) descriptors, acording to ulimit -n -> 1024 fds
- 	- What are the three things that limit the amount of different stated connections on the server with TCP?
- 	 	--
+	- How to detect when connection is lost / application has crashed at the other end with UDP?
+		Since UDP is a connectionless protocol it makes no sense talk about conections. You can't detect disconnects
+    - What is the maximum size for UDP datagram in class 6325?
+    	C & P from wikipedia:
+
+		A field that specifies the length in bytes of the entire datagram: header and data. The minimum length is 8 bytes since that's the length of the header. The field size sets a theoretical limit of 65,535 bytes (8 byte header + 65,527 bytes of data) for a UDP datagram.
+		 *******The practical limit for the data length which is imposed by the underlying IPv4 protocol is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).***********
+
+		In IPv6 Jumbograms it is possible to have UDP packets of size greater than 65,535 bytes.
+		*********This allows for a maximum length value of 4,294,967,295 bytes (2^32 - 1) with 8 bytes representing the header and 4,294,967,287 bytes for data.).***********
+
 
 References
-	- Beej's Guide to Network Programming
 	- Classroom wiki examples
+	- Unix Bible (aka man pages)
 	- Some problems related to this assignment were discussed with Pablo Jesus Caro Martin (0404489), with mutual helping.
