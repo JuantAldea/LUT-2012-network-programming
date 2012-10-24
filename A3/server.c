@@ -293,3 +293,12 @@ int is_number(char *str, int base, int *number)
 	}
 	return 0;
 }
+
+//from http://stackoverflow.com/a/2372149
+uint16_t get_port(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET) {
+        return (((struct sockaddr_in*)sa)->sin_port);
+    }
+    return (((struct sockaddr_in6*)sa)->sin6_port);
+}

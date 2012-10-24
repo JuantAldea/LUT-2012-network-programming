@@ -12,18 +12,18 @@
 
 #ifndef __LINKED_LIST_H__
 #define __LINKED_LIST_H__
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #define uchar unsigned char
 
 typedef struct node_s node_t;
 struct node_s {
-	char *date_time;
-	char *aphorism;
-	char *ip;
+    uint8_t port;
 	node_t *next;
 	node_t *previous;
 };
@@ -43,7 +43,7 @@ void list_add_last (node_t *n, linked_list_t *list);
 void list_delete(linked_list_t *list);
 void list_remove_node(node_t *n, linked_list_t *list);
 
-node_t *list_create_node(char *ip, char *aphorism, char *date_time);
+node_t *list_create_node(uint8_t port);
 
 void list_print(linked_list_t *list);
 void list_reverse_print(linked_list_t *list);

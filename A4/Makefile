@@ -11,19 +11,15 @@
 
 CC := gcc
 CFLAGS := -Wall -pedantic -std=gnu99 -g -pipe
-SERVER := aphorismserver
-CLIENT := aphorismclient
+SERVER := gameclient
 OBJ :=  protocol.o linked_list.o common.o
 
 build: all
 
-all: $(SERVER) $(CLIENT)
+all: $(SERVER)
 
 $(SERVER): $(OBJ) server.o
 	$(CC) $(CFLAGS) -o $(SERVER) $(OBJ) server.o
-
-$(CLIENT): $(OBJ) client.o
-	$(CC) $(CFLAGS) -o $(CLIENT) $(OBJ) client.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c -o $*.o

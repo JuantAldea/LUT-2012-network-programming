@@ -21,12 +21,6 @@ void list_init(linked_list_t *list)
 	list->head->next = list->tail;
 	list->head->previous = NULL;
 	list->tail->next = NULL;
-	list->head->ip = NULL;
-	list->tail->ip = NULL;
-	list->head->aphorism = NULL;
-	list->tail->aphorism = NULL;
-	list->head->date_time = 0;
-	list->tail->date_time = 0;
 	list->tail->previous = list->head;
 }
 
@@ -43,18 +37,10 @@ void list_delete(linked_list_t *list)
 }
 
 //build a new list node
-node_t *list_create_node(char *ip, char *aphorism, char *date_time)
+node_t *list_create_node(uint8_t port)
 {
 	node_t *node = (node_t *)malloc(sizeof(node_t));
-	int addr_length = strlen(ip) + 1;
-	int aphorism_length = strnlen(aphorism, 508) + 1;
-	int date_time_length = strlen(date_time) + 1;
-	node->aphorism = (char*)malloc(aphorism_length * sizeof(char));
-	node->ip = (char *)malloc(addr_length * sizeof(char));
-	node->date_time = (char *)malloc(date_time_length * sizeof(char));
-	sprintf(node->ip, "%s", ip);
-	sprintf(node->aphorism, "%s", aphorism);
-	sprintf(node->date_time, "%s", date_time);
+
 	node->next = NULL;
 	node->previous = NULL;
 	return node;
@@ -88,9 +74,6 @@ void list_remove_node(node_t *node, linked_list_t *list)
 	list->count--;
 	node->previous->next = node->next;
 	node->next->previous = node->previous;
-	free(node->ip);
-	free(node->aphorism);
-	free(node->date_time);
 	free(node);
 }
 
@@ -108,7 +91,6 @@ void list_print(linked_list_t *list)
 {
 	printf("########################## Aphorisms #######################\n");
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
-		printf("%s: %s %s\n", i->date_time, i->ip, i->aphorism);
 	}
 	printf("############################################################\n");
 }
@@ -117,7 +99,6 @@ void list_reverse_print(linked_list_t *list)
 {
 	printf("########################## Aphorisms #######################\n");
 	for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
-		printf("%s: %s %s\n", i->date_time, i->ip, i->aphorism);
 	}
 	printf("############################################################\n");
 }

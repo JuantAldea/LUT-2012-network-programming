@@ -17,11 +17,16 @@
 #include "server_commands.h"
 #include "linked_list.h"
 
-#define BACKLOG 100
+typedef enum
+{
+    IDLE,
+    PLAYING
+}GAME_STATE;
+
 
 int server(char *port);
 
-int prepare_server (char *port);
+int prepare_server (char *port, uint16_t *port_number);
 
 int parse_command(char *command);
 
@@ -31,6 +36,10 @@ int is_number(char *str, int base, int *number);
 
 void help(char *name);
 
-void write_to_database(FILE *database, node_t *aph);
+void cli();
+
+int message_management(linked_list_t *game_list);
+
+uint16_t get_port(struct sockaddr *sa);
 
 #endif
