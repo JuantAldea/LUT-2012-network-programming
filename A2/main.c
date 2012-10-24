@@ -89,6 +89,7 @@ int main(int argc, char **argv)
 			missing_params = 1;
 		}
 		if (!missing_params){
+			printf("%s %s\n", addr, port);
 			return client(name, addr, port);
 		}
 	}else{
