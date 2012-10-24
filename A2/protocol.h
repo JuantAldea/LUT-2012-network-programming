@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                   protocol.h                #
+###############################################
+*/
+
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 
@@ -7,8 +17,10 @@
 #include "common.h"
 #include "recv_buffer.h"
 #include "linked_list.h"
-#define MAX_NICKNAME_LENGTH 15
+#include  "common.h"
+
 #define HEADER_SIZE 6
+
 //base
 int send_msg(int socket, uchar *msg, int msg_size, int16_t type);
 int recv_msg(int socket, recv_buffer_t *buffer, int *full_message);
@@ -26,6 +38,8 @@ int send_fwd_chat_msg(int socket, char *nickname, char *msg);
 int send_accept_nickname_change(int socket, char *nickname);
 int send_fwd_introduction_msg(int socket, char *nickname, char *msg);
 int send_error(int socket, char *msg);
+
+//debug
 void buffer_dump(char * buffer, int length);
 
 #endif

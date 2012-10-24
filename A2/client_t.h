@@ -4,18 +4,21 @@
 #        Assignment2: TCP multiuser chat      #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
-#                  common.h                   #
+#                  client_t.h                 #
 ###############################################
 */
 
-#ifndef __COMMON_H__
-#define __COMMON_H__
+#ifndef __CLIENT_T_H__
+#define __CLIENT_T_H__
 
-#define uchar unsigned char
+#include <stdlib.h>
 
-#define MAX_NICKNAME_LENGTH 15
+typedef struct client_s client_t;
+struct client_s{
+	int fd;
+	char *name;
+};
 
-#include "system_headers.h"
-#include "protocol.h"
+void client_free(client_t *client);
 
 #endif

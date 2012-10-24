@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                   client.c                  #
+###############################################
+*/
+
 #include "client.h"
 
 int read_stdin(char **msg)
@@ -59,6 +69,7 @@ int client(char *name, char *address, char *port)
 	FD_ZERO(&ready_set);
 	int not_connected = 1;
 	int socket_descriptor = -1;
+	//poll the stdin for the /connect command
 	while (not_connected){
 		FD_SET(STDIN_FILENO, &ready_set);
 		if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) < 0) {
@@ -92,6 +103,7 @@ int client(char *name, char *address, char *port)
 
 	int number_of_fds = socket_descriptor + 1;
 	int running = 1;
+	//we are connected, no we will listen to stdin and the connection socket
 	while(running){
 		FD_SET(STDIN_FILENO, &ready_set);
 		FD_SET(socket_descriptor, &ready_set);
@@ -100,10 +112,12 @@ int client(char *name, char *address, char *port)
             perror("Error in select");
             return EXIT_FAILURE;
         }
-
+        //activity in stdin
 		if (FD_ISSET(STDIN_FILENO, &ready_set)){
+			//parse the command
 			char *message = NULL;
 			int command = read_stdin(&message);
+			//and do what you have to do
 			switch(command){
 				case QUIT_COMMAND_CODE:
 					send_disconnect(socket_descriptor, message);
@@ -119,12 +133,12 @@ int client(char *name, char *address, char *port)
 					send_login(socket_descriptor, message, "");
 					break;
 				default:
-					printf("UNKOWN COMMAND\n");
+					printf("[ERROR] UNKOWN COMMAND\n");
 					break;
 			}
 			free(message);
 		}
-
+		//activity in the socket
 		if(FD_ISSET(socket_descriptor, &ready_set)){
 			recv_buffer_t *buffer = NULL;
 			buffer = (recv_buffer_t*)malloc(sizeof(recv_buffer_t));
@@ -147,14 +161,15 @@ int client(char *name, char *address, char *port)
 	return EXIT_SUCCESS;
 }
 
+//returns the socket descriptor of the
 int prepare_connection(char *address, char *port)
 {
 	struct addrinfo hints;
 	//fill all the fields with zero, just to be sure. Actually it crashed without this.
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET6; //don't care ipv4 or ipv6
+	hints.ai_family = AF_INET6; //only IPv6 allowed
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; //automatic self ip
+	hints.ai_flags = AI_PASSIVE;
 	hints.ai_protocol = IPPROTO_TCP;
 
 	int error = 0;
@@ -225,7 +240,12 @@ void print_user_list(recv_buffer_t *buffer)
 
 void print_client_left(recv_buffer_t *buffer)
 {
-	printf("%s disconnected (%s)\n", buffer->buffer, (buffer->buffer + MAX_NICKNAME_LENGTH));
+	//if the client who left has said something
+	if (buffer->message_length > MAX_NICKNAME_LENGTH){
+		printf("[DISCONNECTED] %s: %s\n", buffer->buffer, (buffer->buffer + MAX_NICKNAME_LENGTH));
+	}else{
+		printf("[DISCONNECTED] %s\n", buffer->buffer);
+	}
 
 }
 

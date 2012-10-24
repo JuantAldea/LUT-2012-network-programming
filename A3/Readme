@@ -1,0 +1,61 @@
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment 3: UDP aphorisms          #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Readme                     #
+###############################################
+
+Description
+	- UDP client and server that exchange aphorisms between them
+
+File description
+	.
+	├── client.c Client main function, also function related to message presentation
+	├── common.c Only a function, fflush_stdin
+	├── common.h
+	├── linked_list.c client_t type related functions
+	├── linked_list.h
+	├── Makefile Build instructions
+	├── protocol.c Functions for receive and send messages according to the protocol rules
+	├── protocol.h
+	├── Readme This file, infinite recursion
+	├── server.c Server main function, server CLI and functions for dealing with the messages
+	├── server.h
+	├── server_commands.h Constants definition file for the server CLI
+	└── system_headers.h Just a bunch of system includes
+
+Implemented features
+	- Parameters managed by getopt
+	- Unlimited number aphorisms
+		- Managed with a double linked list
+	-Aphorisms are added to the database in real time
+		- Client blocks on recvfrom only for 5 seconds
+	- CLI
+		- list: list the full list of aphorisms
+		- quit: exit
+Building
+	- make || make all || make build
+	- clean target also included
+
+Execution
+	- Client: ./aphorismclient -h <server address> -p <port number> -c <command>
+	- Server: ./aphorismserver -p <listening port>
+
+Questions:
+	- How to detect when connection is lost / application has crashed at the other end with UDP?
+		Since UDP is a connectionless protocol it makes no sense talk about conections. You can't detect disconnects
+    - What is the maximum size for UDP datagram in class 6325?
+    	C & P from wikipedia:
+
+		A field that specifies the length in bytes of the entire datagram: header and data. The minimum length is 8 bytes since that's the length of the header. The field size sets a theoretical limit of 65,535 bytes (8 byte header + 65,527 bytes of data) for a UDP datagram.
+		 *******The practical limit for the data length which is imposed by the underlying IPv4 protocol is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP header).***********
+
+		In IPv6 Jumbograms it is possible to have UDP packets of size greater than 65,535 bytes.
+		*********This allows for a maximum length value of 4,294,967,295 bytes (2^32 - 1) with 8 bytes representing the header and 4,294,967,287 bytes for data.).***********
+
+
+References
+	- Classroom wiki examples
+	- Unix Bible (aka man pages)
+	- Some problems related to this assignment were discussed with Pablo Jesus Caro Martin (0404489), with mutual helping.

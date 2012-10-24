@@ -1,28 +1,29 @@
 /*
-###############################################
-#        CT30A5001 - Network Programming      #
-#        Assignment2: TCP multiuser chat      #
-#   Juan Antonio Aldea Armenteros (0404450)   #
-#        juan.aldea.armenteros@lut.fi         #
-#                  linked_list.h              #
-###############################################
+####################################################
+#         CT30A5001 - Network Programming          #
+# Assignment 4: Multicast Game announcement system #
+#                        &                         #
+#                   tic-tac-toe                    #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#                   linked_list.h                  #
+####################################################
 */
 
 #ifndef __LINKED_LIST_H__
 #define __LINKED_LIST_H__
 
+#include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "recv_buffer.h"
-#include "client_t.h"
+#include <stdint.h>
 #define uchar unsigned char
-#define MAX_NICKNAME_LENGTH 15
 
 typedef struct node_s node_t;
 struct node_s {
-	recv_buffer_t *buffer;
-	client_t *client;
+    uint8_t port;
 	node_t *next;
 	node_t *previous;
 };
@@ -42,12 +43,11 @@ void list_add_last (node_t *n, linked_list_t *list);
 void list_delete(linked_list_t *list);
 void list_remove_node(node_t *n, linked_list_t *list);
 
-node_t *list_create_node(int fd, char *name);
-
-void list_set_name_by_node(node_t *user, char *name, linked_list_t *list);
+node_t *list_create_node(uint8_t port);
 
 void list_print(linked_list_t *list);
 void list_reverse_print(linked_list_t *list);
 
+node_t *list_get_node_by_index(int index, linked_list_t *list);
 
 #endif

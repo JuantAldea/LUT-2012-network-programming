@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                protocol_constant.h          #
+###############################################
+*/
+
 #ifndef __PROTOCOL_CONSTANTS_H__
 #define __PROTOCOL_CONSTANTS_H__
 

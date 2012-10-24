@@ -1,11 +1,22 @@
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Makefile                   #
+###############################################
+
+
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
 TARGET := tcpchatclientserver
-OBJ := server.o client.o protocol.o linked_list.o
+OBJ := server.o client.o protocol.o linked_list.o recv_buffer.o client_t.o
 
 build: all
 
-all: $(OBJ) main.c
+all: $(TARGET)
+
+$(TARGET): $(OBJ) main.c
 	$(CC) $(CFLAGS) -o $(TARGET) main.c $(OBJ)
 
 %.o: %.c %.h

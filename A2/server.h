@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  server.h                   #
+###############################################
+*/
+
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
@@ -27,5 +37,7 @@ void broadcast_chat_message(char *nickname, char *message, linked_list_t *users)
 void broadcast_quit_message(char *nickname, char *message, linked_list_t *users);
 void broadcast_nickname_change(char *oldname, char *newname, linked_list_t *users);
 void broadcast_connect_message(char *name, char *connect_msg, linked_list_t *users);
+
+void flush_stdin(void);
 
 #endif
