@@ -15,11 +15,8 @@
 
 #define uchar unsigned char
 
-#define MAX_NICKNAME_LENGTH 15
-
 #include "system_headers.h"
 #include "protocol.h"
 
-void flush_stdin(void);
 
 #endif

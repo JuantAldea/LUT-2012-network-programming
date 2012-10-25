@@ -31,15 +31,15 @@
 typedef struct node_s node_t;
 struct node_s {
     struct sockaddr_storage *addr;
-	node_t *next;
-	node_t *previous;
+    node_t *next;
+    node_t *previous;
 };
 
 typedef struct linked_list_s linked_list_t;
 struct linked_list_s {
-	node_t *head;
-	node_t *tail;
-	int count;
+    node_t *head;
+    node_t *tail;
+    int count;
 };
 
 void list_init(linked_list_t *list);

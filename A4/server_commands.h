@@ -28,6 +28,6 @@
 #define PLACE_COMMAND_CODE  4
 #define QUIT_COMMAND_CODE   5
 
-#define UNKOWN_COMMAND_CODE 	255
+#define UNKOWN_COMMAND_CODE     255
 
 #endif

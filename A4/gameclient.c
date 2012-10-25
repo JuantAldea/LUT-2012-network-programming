@@ -13,13 +13,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "server.h"
+#include "gameclient.h"
 #include <sys/ioctl.h>
 #include "common.h"
-#include "server.h"
-
-#define HELLO_PORT 27024
-#define HELLO_GROUP "225.0.0.37"
 
 int main(int argc, char **argv)
 {
@@ -39,28 +35,36 @@ int main(int argc, char **argv)
                 }else{
                     printf("Invalid open port number: %s\n", optarg);
                 }
+                break;
             case 'p':
                 if (is_number(optarg, 10, &port_number)){
                     port = optarg;
                 }else{
                     printf("Invalid port number: %s\n", optarg);
                 }
-            break;
+                break;
             case ':':
                 printf ("Something?\n");
-            break;
+                break;
             case '?':
                 switch(optopt){
                     case 'p':
-                        printf("-%c: Missing port.", optopt);
+                        printf("-%c: Missing multicast port.", optopt);
+                    break;
+                    case 'm':
+                        printf("-%c: Missing multicast ip.", optopt);
+                    break;
+                     case 'o':
+                        printf("-%c: Missing server port.", optopt);
                     break;
                 }
-            break;
+                break;
         }
     }
 
     if (port != NULL && open_port != NULL && ip != NULL){
-        return server(port, ip, open_port);
+        printf("%s %s %s\n", port, ip, open_port);
+        return server(open_port, ip, port);
     }else{
         printf("Wrong sintax\n");
         help(argv[0]);
@@ -95,10 +99,10 @@ int server(char *port, char *multicast_addr, char *multicast_port)
     struct sockaddr_in multicast_group;
     memset(&multicast_group, 0, sizeof(multicast_group));
     multicast_group.sin_family = AF_INET;
-    multicast_group.sin_addr.s_addr = inet_addr(HELLO_GROUP);
-    multicast_group.sin_port = htons(HELLO_PORT);
+    multicast_group.sin_addr.s_addr = inet_addr(multicast_addr);
+    multicast_group.sin_port = htons(atoi(multicast_port));
     struct ip_mreq mreq;
-    mreq.imr_multiaddr.s_addr = inet_addr(HELLO_GROUP);
+    mreq.imr_multiaddr.s_addr = inet_addr(multicast_addr);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 
     //loop looking for a addr that works
@@ -185,6 +189,7 @@ int server(char *port, char *multicast_addr, char *multicast_port)
     struct sockaddr_storage opponent;
     memset(&opponent, 0, sizeof(struct sockaddr_storage));
     socklen_t opponent_sock_len;
+    node_t *selected_player = NULL;
     while(running){
         if(select(max_fd + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
             perror("Error in select");
@@ -210,7 +215,9 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                     case SEARCH_COMMAND_CODE:
                         if (game_state == IDLE){
                             list_clear(players);
-                            send_WHOIS(multicast_socket, (struct sockaddr*)&multicast_group, sizeof(multicast_group));
+                            if (0 > send_WHOIS(multicast_socket, (struct sockaddr*)&multicast_group, sizeof(multicast_group))){
+                                perror("ERROR send_whois");
+                            }
                         }else{
                             printf("ALREADY PLAYING\n");
                         }
@@ -223,9 +230,12 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                         }
                         break;
                     case JOIN_COMMAND_CODE:
-                        if (params[0] < players->count){
-                            node_t *player = list_get_node_by_index(params[0], players);
-                            send_HELLO(client_socket, (struct sockaddr*)player->addr, sizeof(struct sockaddr));
+                        if (params[0] < players->count && params[0] >= 0){
+                            selected_player = list_get_node_by_index(params[0], players);
+                            if (0 > send_HELLO(client_socket, (struct sockaddr*)selected_player->addr, sizeof(struct sockaddr))){
+                                perror("Error send HELLO");
+                            }
+                            printf("[IN GAME] Other's Turn\n");
                         }else{
                             printf("INVALID GAME NUMBER\n");
                         }
@@ -243,17 +253,27 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                                     grid[params[0] * 3 + params[1]] == '-'){
                                     grid[params[0] * 3 + params[1]] = 'o';
                                     if (test_won(grid, 'o')){
-                                        send_WINNER(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 'o');
+                                        if (0 > send_WINNER(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 'o')){
+                                            perror("ERROR send_winner");
+                                        }
+                                        printf("[WINNER] You won\n");
+                                        game_state = IDLE;
                                     }else{
-                                        send_GRID(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, grid);
+                                        if (0 > send_GRID(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, grid)){
+                                            perror("ERROR send_GRID");
+                                        }
                                         current_turn = (current_turn + 1) % 2;
+                                        print_grid(grid);
+                                        printf("[IN GAME] Other's Turn\n");
                                     }
                                 }else{
                                     printf("[ERROR] Invalid position\n");
                                 }
                             }else if(game_state == CLIENT && current_turn == 1){
                                 if (grid[params[0] * 3 + params[1]] == '-'){
-                                    send_POSITION(client_socket, (struct sockaddr*)&opponent, opponent_sock_len, params[0], params[1]);
+                                    if (0 > send_POSITION(client_socket, (struct sockaddr*)&opponent, opponent_sock_len, params[0], params[1])){
+                                        perror("Error send_position");
+                                    }
                                 }else{
                                     printf("[ERROR] Invalid position\n");
                                 }
@@ -269,13 +289,15 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                             free(players);
                         }else{
                             if(game_state == SERVER){
-                                send_QUIT(open_socket, (struct sockaddr *)&opponent, opponent_sock_len);
-                                perror("asd");
-                                printf("YOU HAVE LEFT THE GAME\n");
+                                printf("[YOU FLEED] You are in the looby now\n");
+                                if(send_QUIT(open_socket, (struct sockaddr *)&opponent, opponent_sock_len) < 0){
+                                    perror("ERROR QUIT");
+                                }
                             }else if (game_state == CLIENT){
-                                printf("YOU HAVE LEFT THE GAME\n");
-                                send_QUIT(client_socket, (struct sockaddr *)&opponent, opponent_sock_len);
-                                perror("zxc");
+                                printf("[YOU FLEED]YOU HAVE LEFT THE GAME\n");
+                                if(send_QUIT(client_socket, (struct sockaddr *)&opponent, opponent_sock_len) < 0){
+                                    perror("ERROR QUIT");
+                                }
                             }else{
 
                             }
@@ -301,7 +323,6 @@ int server(char *port, char *multicast_addr, char *multicast_port)
             struct sockaddr_storage *sender_address = (struct sockaddr_storage*)malloc(sizeof(struct sockaddr_storage));
             socklen_t sender_address_size = sizeof(struct sockaddr_storage);
             memset(sender_address, 0, sizeof(struct sockaddr_storage));
-            //printf("MULTICAST\n");
             uchar recvbuffer[1024];
             memset(recvbuffer, 0, 1024);
             if (recvfrom(multicast_socket, &recvbuffer, 1024, 0, (struct sockaddr*)sender_address, &sender_address_size) < 0){
@@ -310,7 +331,9 @@ int server(char *port, char *multicast_addr, char *multicast_port)
 
             if (game_state == IDLE){
                 if(*(uint8_t*)recvbuffer == WHOIS){
-                    send_HOSTINFO(multicast_socket, (struct sockaddr*)&multicast_group, sizeof(multicast_group), ((struct sockaddr_in *)addr->ai_addr)->sin_port);
+                    if (0 > send_HOSTINFO(multicast_socket, (struct sockaddr*)&multicast_group, sizeof(multicast_group), ((struct sockaddr_in *)addr->ai_addr)->sin_port)){
+                        perror("ERROR send_HOSTINFO");
+                    }
                     free(sender_address);
                 }else if(*(uint8_t*)recvbuffer == HOSTINFO){
                     ((struct sockaddr_in *)sender_address)->sin_port = *(uint16_t*)((uint8_t*)recvbuffer + 1);
@@ -331,7 +354,7 @@ int server(char *port, char *multicast_addr, char *multicast_port)
             memset(recvbuffer, 0, 1024);
             //HAY QUE COMPROBAR EL REMITENTE!!!!
             if (recvfrom(open_socket, &recvbuffer, 1024, 0, (struct sockaddr*)&sender_address, &sender_address_size) < 0){
-                perror("Recvfrom server socket");
+                perror("Recvfrom multicast");
             }
 
             if(game_state == IDLE){
@@ -342,6 +365,7 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                     if (0 > send_HREPLY(open_socket, (struct sockaddr*)&sender_address, sender_address_size)){
                         perror("HREPLY");
                     }
+                    printf("[IN GAME] Your Turn\n");
                     game_state = SERVER;
                     current_turn = 0;
                 }
@@ -355,19 +379,24 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                             if (x >= 0 && x < 3 && y >= 0 && y < 3 && grid[*((uint8_t*)recvbuffer + 1) * 3 + *((uint8_t*)recvbuffer + 2)] == '-'){
                                 grid[*((uint8_t*)recvbuffer + 1) * 3 + *((uint8_t*)recvbuffer + 2)] = 'x';
                                 if(test_won(grid, 'x')){
-                                    send_WINNER(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 'x');
-                                    printf("YOU WIN\n");
-                                    game_state = IDLE;
+                                    if (0 > send_WINNER(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 'x')){
+                                        perror("ERROR send_winner");
+                                    }
                                 }else{
                                     current_turn = (current_turn + 1) % 2;
-                                    send_GRID(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, grid);
+                                    if (0 > send_GRID(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, grid)){
+                                        perror("ERROR send grid");
+                                    }
+                                    print_grid(grid);
+                                    printf("[IN GAME] Your turn\n");
                                 }
                             }else{
-                                send_ERROR(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 2);
+                                if (0 > send_ERROR(open_socket, (struct sockaddr*)&opponent, opponent_sock_len, 2)){
+                                    perror("ERROR send error\n");
+                                }
                             }
-                            //check winner
                         }else if(*(uint8_t*)recvbuffer == QUIT){
-                            printf("REMOTE PLAYER LEFT\n");
+                            printf("[PLAYER LEFT]You are in the looby now\n");
                             game_state = IDLE;
                             memset(&opponent, 0, opponent_sock_len);
                         }else{
@@ -377,11 +406,15 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                     }else if(*(uint8_t*)recvbuffer == QUIT){
                         game_state = IDLE;
                     }else{
-                        send_ERROR(open_socket, (struct sockaddr*)&sender_address, sender_address_size, 1);
+                        if (0 > send_ERROR(open_socket, (struct sockaddr*)&sender_address, sender_address_size, 1)){
+                           perror("send_ERROR");
+                        }
                     }
                 }
             }else{
-                send_ERROR(open_socket, (struct sockaddr*)&sender_address, sender_address_size, 1);
+                if (0 > send_ERROR(open_socket, (struct sockaddr*)&sender_address, sender_address_size, 1)){
+                    perror("ERROR send error");
+                }
             }
         }
 
@@ -393,7 +426,7 @@ int server(char *port, char *multicast_addr, char *multicast_port)
             memset(recvbuffer, 0, 1024);
 
             if (recvfrom(client_socket, &recvbuffer, 1024, 0, (struct sockaddr*)&sender_address, &sender_address_size) < 0){
-                perror("Recvfrom client socket");
+                perror("Recvfrom client_socket");
             }
             if (game_state == IDLE){
                 if(*(uint8_t*)recvbuffer == HREPLY){
@@ -401,20 +434,34 @@ int server(char *port, char *multicast_addr, char *multicast_port)
                     opponent_sock_len = sender_address_size;
                     game_state = CLIENT;
                     current_turn = 0;
+                }else if(*(uint8_t*)recvbuffer == ERROR){
+                    printf("[ERROR] Target player reported error, removed from the list\n");
+                    if (selected_player != NULL){
+                        list_remove_node(selected_player, players);
+                        selected_player = NULL;
+                    }
                 }
             }else if(!memcmp(&opponent, &sender_address, opponent_sock_len)){
                 if(*(uint8_t*)recvbuffer == WINNER){
                     printf("[WINNER] Player %c wins\n", *(char*)recvbuffer + 1);
+                    game_state = IDLE;
                 }else if(*(uint8_t*)recvbuffer == GRID){
                     memcpy(grid, recvbuffer + 1, 9);
                     print_grid(grid);
                     current_turn = (current_turn + 1) % 2;
+                    printf("[IN GAME] Next turn\n");
                 }else if(*(uint8_t*)recvbuffer == QUIT){
-                    printf("REMOTE PLAYER LEFT\n");
+                    printf("[PLAYER LEFT]You are in the looby now\n");
                     game_state = IDLE;
                     memset(&opponent, 0, opponent_sock_len);
                 }else if(*(uint8_t*)recvbuffer == ERROR){
-
+                    if (*(uint16_t*)(recvbuffer + 1) == 0){
+                        printf("ERROR 0\n");
+                    }else if (*(uint16_t*)(recvbuffer + 1) == 0){
+                        printf("ERROR 1\n");
+                    }else if (*(uint16_t*)(recvbuffer + 1) == 0){
+                        printf("ERROR 2\n");
+                    }
                 }
             }else{
                 //the client doesn't send any errors

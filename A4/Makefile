@@ -8,21 +8,20 @@
 #                     Makefile                     #
 ####################################################
 
-
 CC := gcc
 CFLAGS := -Wall -pedantic -std=gnu99 -g -pipe
 SERVER := gameclient
-OBJ :=  protocol.o linked_list.o common.o
+OBJ :=  protocol.o linked_list.o
 
 build: all
 
 all: $(SERVER)
 
-$(SERVER): $(OBJ) server.o
-	$(CC) $(CFLAGS) -o $(SERVER) $(OBJ) server.o
+$(SERVER): $(OBJ) gameclient.o
+	$(CC) $(CFLAGS) -o $(SERVER) $(OBJ) gameclient.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c -o $*.o
 
 clean:
-	rm -f *.o $(SERVER) $(CLIENT)
+	rm -f *.o $(SERVER)

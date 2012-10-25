@@ -44,6 +44,7 @@ int message_management(linked_list_t *game_list);
 uint16_t get_port(struct sockaddr *sa);
 
 void print_grid(char grid[9]);
+
 int test_won(char grid[9], char player);
 
 #endif
