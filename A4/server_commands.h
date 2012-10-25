@@ -13,12 +13,12 @@
 #ifndef __SERVER_COMMANDS_H__
 #define __SERVER_COMMANDS_H__
 
-#define SEARCH_COMMAND_STR  "search"
-#define GAMES_COMMAND_STR   "games"
-#define JOIN_COMMAND_STR    "join"
-#define GRID_COMMAND_STR    "grid"
-#define PLACE_COMMAND_STR   "place"
-#define QUIT_COMMAND_STR    "quit"
+#define SEARCH_COMMAND_STR  "/search"
+#define GAMES_COMMAND_STR   "/games"
+#define JOIN_COMMAND_STR    "/join"
+#define GRID_COMMAND_STR    "/grid"
+#define PLACE_COMMAND_STR   "/place"
+#define QUIT_COMMAND_STR    "/quit"
 
 
 #define SEARCH_COMMAND_CODE 0

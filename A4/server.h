@@ -20,15 +20,16 @@
 typedef enum
 {
     IDLE,
-    PLAYING
+    SERVER,
+    CLIENT
 }GAME_STATE;
 
 
-int server(char *port);
+int server(char *port, char *multicast_addr, char *multicast_port);
 
-int prepare_server (char *port, uint16_t *port_number);
+int prepare_server (char *port, struct addrinfo *adr);
 
-int parse_command(char *command);
+int parse_command(char *command, int params[2]);
 
 void flush_stdin(void);
 
@@ -41,5 +42,8 @@ void cli();
 int message_management(linked_list_t *game_list);
 
 uint16_t get_port(struct sockaddr *sa);
+
+void print_grid(char grid[9]);
+int test_won(char grid[9], char player);
 
 #endif

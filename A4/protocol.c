@@ -15,7 +15,7 @@
 int send_msg(int socket, struct sockaddr *addr, socklen_t address_len, uchar *msg, int8_t msg_size)
 {
 	int bytes_to_send = sizeof(uchar) * msg_size;
-	return sendto(socket, msg, bytes_to_send, 0, addr,address_len);
+	return sendto(socket, msg, bytes_to_send, 0, addr, address_len);
 }
 
 int recv_msg(int socket, struct sockaddr *addr, socklen_t *address_len, char *buffer)
@@ -27,15 +27,17 @@ int recv_msg(int socket, struct sockaddr *addr, socklen_t *address_len, char *bu
 int send_WHOIS(int socket, struct sockaddr *addr, socklen_t address_len)
 {
 	uint8_t msg = WHOIS;
-	return send_msg(socket, addr, address_len, (uchar *)&msg, 3);
+	return send_msg(socket, addr, address_len, (uchar *)&msg, sizeof(uint8_t));
 }
 
 int send_HOSTINFO(int socket, struct sockaddr *addr, socklen_t address_len, uint16_t port)
 {
 	uchar *msg = (uchar *)malloc(sizeof(uint8_t) + sizeof(uint16_t));
 	((uint8_t *)msg)[0] = HOSTINFO;
-	((uint8_t *)msg)[1] = htons(port);
-	return send_msg(socket, addr, address_len, msg, sizeof(uint8_t)  + sizeof(uint16_t));
+	memcpy((uint8_t*)msg + 1, &port, sizeof(port));
+	int bytes_sent = send_msg(socket, addr, address_len, msg, sizeof(uint8_t)  + sizeof(uint16_t));
+	free(msg);
+	return bytes_sent;
 }
 
 int send_HELLO(int socket, struct sockaddr *addr, socklen_t address_len)
@@ -64,9 +66,10 @@ int send_GRID(int socket, struct sockaddr *addr, socklen_t address_len, char gri
 	int8_t msg_length = sizeof(char) * 9 + sizeof(uint8_t);
 	uchar *msg = (uchar*)malloc(msg_length);
 	(*((uint8_t *)msg)) = GRID;
-	char *ptr = (char *)((uint8_t*)msg + 1);
-	memcpy(ptr, grid, sizeof(grid));
-	return send_msg(socket, addr, address_len, msg, msg_length);
+	memcpy(msg + 1, grid, 9);
+	int sent_bytes = send_msg(socket, addr, address_len, msg, msg_length);
+	free(msg);
+	return sent_bytes;
 }
 
 int send_WINNER(int socket, struct sockaddr *addr, socklen_t address_len, char player_mark)
@@ -74,7 +77,9 @@ int send_WINNER(int socket, struct sockaddr *addr, socklen_t address_len, char p
 	uchar *msg = (uchar *)malloc(sizeof(char) + sizeof(uint8_t));
 	(*(uint8_t*)msg) = WINNER;
 	((uint8_t *)msg)[1] = player_mark;
-	return send_msg(socket, addr, address_len, msg, sizeof(char) + sizeof(uint8_t));
+	int sent_bytes = send_msg(socket, addr, address_len, msg, sizeof(char) + sizeof(uint8_t));
+	free(msg);
+	return sent_bytes;
 }
 
 int send_QUIT(int socket, struct sockaddr *addr, socklen_t address_len)
@@ -88,5 +93,7 @@ int send_ERROR(int socket, struct sockaddr *addr, socklen_t address_len, uint16_
 	uchar *msg = (uchar *)malloc(sizeof(uint8_t) + sizeof(uint16_t));
 	*(uint8_t *)msg = ERROR;
 	*(uint16_t *)((uint8_t *)msg + 1) = htons(error_type);
-	return send_msg(socket, addr, address_len, msg, sizeof(uint8_t) + sizeof(uint16_t));
+	int sent_bytes = send_msg(socket, addr, address_len, msg, sizeof(uint8_t) + sizeof(uint16_t));
+	free(msg);
+	return sent_bytes;
 }

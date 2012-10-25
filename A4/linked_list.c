@@ -27,20 +27,25 @@ void list_init(linked_list_t *list)
 //free the list
 void list_delete(linked_list_t *list)
 {
+	list_clear(list);
+	free(list->head);
+	free(list->tail);
+}
+
+void list_clear(linked_list_t *list)
+{
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
 		node_t *previous = i->previous;
 		list_remove_node(i, list);
 		i = previous;
 	}
-	free(list->head);
-	free(list->tail);
 }
 
 //build a new list node
-node_t *list_create_node(uint8_t port)
+node_t *list_create_node(struct sockaddr_storage *addr)
 {
 	node_t *node = (node_t *)malloc(sizeof(node_t));
-
+	node->addr = addr;
 	node->next = NULL;
 	node->previous = NULL;
 	return node;
@@ -74,6 +79,7 @@ void list_remove_node(node_t *node, linked_list_t *list)
 	list->count--;
 	node->previous->next = node->next;
 	node->next->previous = node->previous;
+	free(node->addr);
 	free(node);
 }
 
@@ -89,8 +95,19 @@ node_t* list_get_node_by_index(int index, linked_list_t *list)
 
 void list_print(linked_list_t *list)
 {
-	printf("########################## Aphorisms #######################\n");
+	int index = 0;
+	printf("########################## Players #######################\n");
+	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+
 	for(node_t *i = list->head->next; i != list->tail; i = i->next){
+		memset(hbuf, 0, NI_MAXHOST);
+		memset(sbuf, 0, NI_MAXSERV);
+
+		getnameinfo((struct sockaddr *)i->addr, sizeof(struct sockaddr), hbuf,
+			sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
+
+		printf("ID: %d ADDR: %s PORT: %s\n", index, hbuf, sbuf);
+		index++;
 	}
 	printf("############################################################\n");
 }

@@ -19,11 +19,18 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <sys/socket.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <netinet/in.h>
+
 #define uchar unsigned char
 
 typedef struct node_s node_t;
 struct node_s {
-    uint8_t port;
+    struct sockaddr_storage *addr;
 	node_t *next;
 	node_t *previous;
 };
@@ -36,6 +43,7 @@ struct linked_list_s {
 };
 
 void list_init(linked_list_t *list);
+void list_clear(linked_list_t *list);
 
 void list_add_first(node_t *n, linked_list_t *list);
 void list_add_last (node_t *n, linked_list_t *list);
@@ -43,7 +51,7 @@ void list_add_last (node_t *n, linked_list_t *list);
 void list_delete(linked_list_t *list);
 void list_remove_node(node_t *n, linked_list_t *list);
 
-node_t *list_create_node(uint8_t port);
+node_t *list_create_node(struct sockaddr_storage *addr);
 
 void list_print(linked_list_t *list);
 void list_reverse_print(linked_list_t *list);
