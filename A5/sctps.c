@@ -238,38 +238,73 @@ int run_test_server(int argc, char* argv[])
                     check_sctp_event(mbuffer, bytes);
                 }else{// Something else from a client
                     int16_t message_code = ntohs(*(int16_t*)mbuffer);
-                    if(message_code == JOIN_MSG){
-                        if (player_list->count < 4){
-                            printf("JOIN\n");
-                            int id = list_get_first_free_player_id(player_list);
-                            assert(id >= 0);
-                            list_add_last(list_create_node(id, infodata.sinfo_assoc_id, sender), player_list);
-                            list_print(player_list);
-                            send_ok(sctp_otm_sock, player_list->count, id, (struct sockaddr*)&sender, salen);
-                            if (player_list->count == 4){
-                                schedule_start = 1;
-                                time_since_scheduled_game = time(NULL);
+                    if(!in_game){
+                        if(message_code == JOIN_MSG){
+                            if (player_list->count < 4){
+                                printf("JOIN\n");
+                                int id = list_get_first_free_player_id(player_list);
+                                assert(id >= 0);
+                                list_add_last(list_create_node(id, infodata.sinfo_assoc_id, sender), player_list);
+                                list_print(player_list);
+                                send_ok(sctp_otm_sock, player_list->count, id, (struct sockaddr*)&sender, salen);
+                                if (player_list->count == 4){
+                                    schedule_start = 1;
+                                    time_since_scheduled_game = time(NULL);
+                                }
+                            }else{
+                                //the server is full, it's sad to kick you
+                                printf("SERVER FULL\n");
+                                char error_msg[] = "Game is full\0";
+                                int a = send_error(sctp_otm_sock, ERROR_GAME_FULL, error_msg, (struct sockaddr*)&sender, salen);
+                                drop_connection (sctp_otm_sock, (struct sockaddr*)&sender, salen);
                             }
                         }else{
-                            printf("SERVER FULL\n");
-                            char error_msg[] = "Game is full\0";
-                            int a = send_error(sctp_otm_sock, ERROR_GAME_FULL, error_msg, (struct sockaddr*)&sender, salen);
+                            //server recived something different from a join so it needs to check if the source is known
+                            node_t *player = list_get_node_by_session_id(infodata.sinfo_assoc_id, player_list);
+                            if (player != NULL){
+                                if(message_code == READY_MSG){
+                                    printf("READY\n");
+                                    player->ready = 1;
+                                    list_print(player_list);
+                                    //TODO enable ready check start
+                                    //start_game = list_ready_check(player_list) && (player_list->count > 1);
+                                }else{
+                                    //during game creation only JOIN and READY commands make sense
+                                    //so other commands are discarted
+                                }
+                            }else{
+                                //the source is unknow, drop it
+                                drop_connection (sctp_otm_sock, (struct sockaddr*)&sender, salen);
+                            }
+                        }
+                    }else{//in game
+                        //there is an error for the slow people, so use it to blame them.
+                        if(message_code == JOIN_MSG){
+                            char error_msg[] = "We are playing.\0";
+                            printf("%s\n", error_msg);
+                            send_error(sctp_otm_sock, ERROR_GAME_RUNNING, error_msg, (struct sockaddr*)&sender, salen);
                             drop_connection (sctp_otm_sock, (struct sockaddr*)&sender, salen);
+                        }else{
+                            //server recived something different from a join so it needs to check if the source is known
+                            node_t *player = list_get_node_by_session_id(infodata.sinfo_assoc_id, player_list);
+                            if (player != NULL){
+                                if(message_code == COLUMN_MSG){
+                                    //check correct turn
+                                    //check column
+                                    //check winner
+                                        //send winner
+                                    //during the game only the column_msg makes sense,
+                                    //so other commands (but the join since it has an error related) are discarted
+                                }else{
+                                    //some client sent some bullshit, just ignore him
+                                }
+                            }else{
+                                //the server received something (not a join) from an unknow source,
+                                //so drop that spammer without any hesication
+                                drop_connection (sctp_otm_sock, (struct sockaddr*)&sender, salen);
+                            }
                         }
-                    }else if(message_code == READY_MSG){
-                        node_t *player = list_get_node_by_session_id(infodata.sinfo_assoc_id, player_list);
-                        if (player != NULL){
-                            printf("READY\n");
-                            player->ready = 1;
-                            list_print(player_list);
-                        }
-                        //TODO enable ready check start
-                        //start_game = list_ready_check(player_list) && (player_list->count > 1);
-                    }else if(message_code == COLUMN_MSG){
-
                     }
-
-
                     printf("\n\t%d bytes from association %u\n", bytes, infodata.sinfo_assoc_id );
                     // Get all addresses of the peer
                     int addr_count = sctp_getpaddrs(sctp_otm_sock, infodata.sinfo_assoc_id, &packedlist);

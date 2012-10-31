@@ -109,9 +109,9 @@ int run_test_client(int argc, char* argv[])
                 printf("Cols %d rows%d\n", *(int8_t*)((int16_t*)mbuffer + 1), *((int8_t*)((int16_t*)mbuffer + 1) + 1));
             }else if(ntohs(*(int16_t*)mbuffer) == ERROR_MSG){
                 printf("|%d %s|\n", *(int8_t*)((int16_t*)mbuffer + 1), (char*)((int8_t*)((int16_t*)mbuffer + 1) + 1));
-            }else{
+            }else if(ntohs(*(int16_t*)mbuffer) == TURN_MSG){
+                printf("it's my turn\n");
             }
-
         }
     }
 

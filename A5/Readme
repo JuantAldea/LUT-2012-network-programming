@@ -1,0 +1,12 @@
+- What are the differences between SCTP one-to-one and one-to-many styles? Why there are 2 “different” styles?
+- Why SCTP can be regarded as more secure as TCP?
+
+
+- Explain the difference between a connection (TCP) and an association (SCTP).
+    In TCP a connection is unique, you can have multiple conections between endpoints but you have to handle them as different connections, is a one to one connection.
+    In SCTP an association could consists in a many-to-many connection between the same host and server, it also supports multiple streams within the same connection
+- What benefits does the multihoming feature of SCTP give? Give at least 3 examples.
+    - More robust connection: If a connection fail other connection of the same association could be used without any intervention.
+    -
+
+- Explain Head-of-line blocking. Why it is a problem with TCP? How SCTP handles this or how this affects SCTP? Give an example application/application layer protocol that could benefit from SCTP where head-of-line blocking can occur.
