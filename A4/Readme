@@ -36,6 +36,7 @@ Implemented features
         - Players that report error are removed from the list
     - CLI
         - quit: You can quit from a game and from the application, if you are playing /quit will make you leave your current game but not quit from the application.
+
 Building
     - make || make all || make build
     - clean target also included
@@ -44,8 +45,8 @@ Execution
     - ./gameclient -m <multicast address> -p <port> -o <open port>
 
 References
-    - Classroom wiki examples
-    - Random Stackoverflow digging
-    - Unix Bible (aka man pages)
-    - Oracle.com Programming Interfaces Guide documentation for SOLARIS
+    - Classroom wiki examples.
+    - Some random Stackoverflow digging.
+    - Unix Bible (aka man pages).
+    - Oracle.com Programming Interfaces Guide documentation for SOLARIS.
     - Some problems related to this assignment were discussed with Pablo Jesus Caro Martin (0404489), with mutual helping.

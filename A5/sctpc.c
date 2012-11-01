@@ -1,40 +1,32 @@
 /*
-* CT30A5001 Network Programming
-* sctpc.c, STCP server and client example
-*
-* Contains simple STCP client example code.
-* Sends a 513 byte packet to server, awaits for reply and sends new
-* data packet to server and awaits for second reply.
-*
-* Author:
-*   Jussi Laakkonen
-*   1234567
-*   jussi.laakkonen@lut.fi
+####################################################
+#         CT30A5001 - Network Programming          #
+#               Assignment 5: SCTP                 #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#              sctp.c               #
+####################################################
 */
 
 #define USE_CONNECT 0
 
 #include "sctpc.h"
 #include "protocol.h"
-
+static volatile int running = 1;
 int main(int argc, char* argv[])
 {
-    #ifdef __RUN_TESTS
-        return run_test_client(argc, argv);
-    #else
-        // Call your code here
-        return 0;
-    #endif
+    return client(argc, argv);
 }
 
-int run_test_client(int argc, char* argv[])
+int client(int argc, char* argv[])
 {
+    signal(SIGTERM, sighandler);
+    signal(SIGINT, sighandler);
     int sctp_sock = -1, gai_stat = 0;       // socket
     struct sockaddr_storage server_addr;        // server address structure
     //struct sockaddr_storage peer_addr;      // peer address structure
     // Lengths for address structures
     socklen_t server_addr_len = 0;
-    socklen_t peer_addr_len = 0;
     struct sctp_event_subscribe sctp_events;    // sctp events
     struct sctp_sndrcvinfo infodata;        // sctp sender info
     struct addrinfo hints, *ai = NULL, *iter = NULL;  // for getaddrinfo
@@ -88,37 +80,162 @@ int run_test_client(int argc, char* argv[])
         perror("setsockopt");
     }
 
-    int sent_bytes;
+
 
     char mbuffer[513];
     memset(&mbuffer, 0, 513);
     int mlen = 513;
     int mflags = 0;
 
-    // Receive the message
-    sent_bytes = send_join (sctp_sock, (SA*)&server_addr, server_addr_len);
-    sent_bytes = send_ready(sctp_sock, (SA*)&server_addr, server_addr_len);
-    while(1){
-        int bytes = sctp_recvmsg(sctp_sock, mbuffer, mlen, (SA*)&server_addr, &server_addr_len, &infodata, &mflags);
-        if(mflags & MSG_NOTIFICATION){
+    // For select()
+    fd_set incoming;
+    char *command_buffer = NULL;
+    int joined = 0;
+    int in_game = 0;
+    int ready = 0;
+    int player_id = 0;
+    int area_rows = 0;
+    int area_columns = 0;
+    char *area = NULL;
+    while(running){
+        FD_ZERO(&incoming);
+        FD_SET(sctp_sock, &incoming);
+        FD_SET(STDIN_FILENO, &incoming);
+        switch(select(sctp_sock + 1,  &incoming, NULL, NULL, NULL)){
+            case -1:
+                perror("Select failed, terminating");
+                running = 0;
+                break;
+            case 0:
+                break;
+            default:
+            {
+                if(FD_ISSET(sctp_sock, &incoming)){
+                    int bytes = sctp_recvmsg(sctp_sock, mbuffer, mlen, (SA*)&server_addr, &server_addr_len, &infodata, &mflags);
 
-        }else{
-            if (ntohs(*(int16_t*)mbuffer) == OK_MSG){
-                printf("%d %d\n", *(int8_t*)((int16_t*)mbuffer + 1), *((int8_t*)((int16_t*)mbuffer + 1) + 1));
-            }else if(ntohs(*(int16_t*)mbuffer) == START_MSG){
-                printf("Cols %d rows%d\n", *(int8_t*)((int16_t*)mbuffer + 1), *((int8_t*)((int16_t*)mbuffer + 1) + 1));
-            }else if(ntohs(*(int16_t*)mbuffer) == ERROR_MSG){
-                printf("|%d %s|\n", *(int8_t*)((int16_t*)mbuffer + 1), (char*)((int8_t*)((int16_t*)mbuffer + 1) + 1));
-            }else if(ntohs(*(int16_t*)mbuffer) == TURN_MSG){
-                printf("it's my turn\n");
+                    if(mflags & MSG_NOTIFICATION){
+                        if (bytes < 8){
+                            continue;
+                        }
+                        switch(*(uint16_t*)mbuffer){
+                            case SCTP_SHUTDOWN_EVENT:
+                                running = 0;
+                            break;
+                            case SCTP_PEER_ADDR_CHANGE:
+                            switch(((struct sctp_paddr_change *)mbuffer)->spc_state){
+                                //if the primary addr has changed, update the list
+                                //we dont want to end up with a dead addr in the database
+                                case SCTP_ADDR_MADE_PRIM:
+                                    printf("ADDR CHANGE\n");
+                                    break;
+                            }
+                            break;
+                        }
+                    }else{
+                        //ignore wrong PPID
+                        if (ntohl(infodata.sinfo_ppid) != PROTOCOL_PAYLOAD_IDENTIFER){
+                            continue;
+                        }
+
+                        if(ntohs(*(int16_t*)mbuffer) == OK_MSG){
+                            joined = 1;
+                            player_id = *((int8_t*)((int16_t*)mbuffer + 1) + 1);
+                            printf("[PLAYER ID]:%d\n", player_id);
+                        }else if(ntohs(*(int16_t*)mbuffer) == START_MSG){
+                            area_columns = *(int8_t*)((int16_t*)mbuffer + 1);
+                            area_rows    = *((int8_t*)((int16_t*)mbuffer + 1) + 1);
+                            in_game      = 1;
+                            system("clear");
+                        }else if(ntohs(*(int16_t*)mbuffer) == ERROR_MSG){
+                            printf("[ERROR] %s\n", (char*)((int8_t*)((int16_t*)mbuffer + 1) + 1));
+                        }else if(ntohs(*(int16_t*)mbuffer) == TURN_MSG){
+                            printf("[YOUR TURN]\n");
+                        }else if(ntohs(*(int16_t*)mbuffer) == WINNER_MSG){
+                            int winner = *(int8_t*)((int16_t*)mbuffer + 1);
+                            if (winner == player_id){
+                                printf("[YOU WON]\n");
+                            }else if(winner > 0){
+                                printf("[PLAYER %d WON]\n", winner);
+                            }else{
+                                printf("[DRAW]\n");
+                            }
+                        }else if(ntohs(*(int16_t*)mbuffer) == AREA_MSG){
+                            if (area != NULL){
+                                free(area);
+                                area = NULL;
+                            }
+                            area = unpack_area((char*)((int16_t*)mbuffer + 1), area_rows, area_columns);
+                            system("clear");
+                            print_grid(area, area_rows, area_columns);
+                        }
+                    }
+                }
+
+                if(FD_ISSET(STDIN_FILENO, &incoming)){
+                    int bytes_in_stdin = 0;
+                    //check the number of bytes in stdin
+                    ioctl(STDIN_FILENO, FIONREAD, &bytes_in_stdin);
+                    if (bytes_in_stdin){
+                        bytes_in_stdin++;//make room for the \0
+                        command_buffer = (char *)malloc(sizeof(char) * bytes_in_stdin);
+                        if (NULL == fgets(command_buffer, bytes_in_stdin, stdin)){
+                            printf("[ERROR] fgets failed\n");
+                        }
+                        command_buffer[bytes_in_stdin - 2] = '\0';
+                        int params[] = {0};
+                        int command = parse_command(command_buffer, params);
+                        switch(command){
+                            case JOIN_COMMAND_CODE:
+                                if(!joined){
+                                    send_join (sctp_sock, (SA*)&server_addr, server_addr_len);
+                                }else{
+                                    printf("Already connected\n");
+                                }
+                                break;
+                            case READY_COMMAND_CODE:
+                                if(!ready && joined){
+                                    send_ready(sctp_sock, (SA*)&server_addr, server_addr_len);
+                                }
+                                break;
+                            case AREA_COMMAND_CODE:
+                                if (in_game){
+                                    print_grid(area, area_rows, area_columns);
+                                }else{
+                                    printf("Not playing\n");
+                                }
+                                break;
+                            case PLACE_COMMAND_CODE:
+                                if(in_game){
+                                    send_column(sctp_sock, params[0], (SA*)&server_addr, server_addr_len);
+                                }else{
+                                    printf("Not playing\n");
+                                }
+                                break;
+                            case QUIT_COMMAND_CODE:
+                                running = 0;
+                                break;
+                            default:
+                                printf("[ERROR] Unknow command\n");
+                                break;
+                        }
+                    }else{
+                        printf("[ERROR] Your STDIN is broken, fix it!\n");
+                    }
+
+                    if (command_buffer != NULL){
+                        free(command_buffer);
+                        command_buffer = NULL;
+                    }
+                }
             }
         }
     }
 
-    while(1){
-        ;
+    if (command_buffer != NULL){
+        free(command_buffer);
+        command_buffer = NULL;
     }
-    sleep(5);
+    drop_connection(sctp_sock, (SA*)&server_addr, server_addr_len);
     close(sctp_sock);
     return 0;
 }
@@ -133,27 +250,6 @@ int testclient_input_error(char* prgrm)
     return -1;
 }
 
-char* testclient_fill_random_data(int max_bytes)
-{
-    if(max_bytes <= 0){
-        return NULL;
-    }
-
-    char *data = (char*)malloc(max_bytes);
-    srand(time(NULL));
-    for(int i = 0; i < max_bytes - 1 ; i++){
-        uint8_t r = random() % 125;
-        if(r < 33){
-            r+= 33;
-        }
-        data[i] = (char)r;
-    }
-    data[max_bytes-1] = '\0';
-    #ifdef __DEBUG_EN
-        printf("Created %d bytes:\n%s\n", max_bytes, data);
-    #endif
-    return data;
-}
 
 void print_addr_type(char* address) {
     // Check that given address is either IPv4 or IPv6 type
@@ -196,7 +292,6 @@ int check_addr_type(char* addr, int len)
     if(!addr){
         return -1;
     }
-
     // Assume that ':' exist multiple times and is IPv6 addr
     if(strchr(addr, ':')){
         if(len < 8){
@@ -236,4 +331,10 @@ int check_addr_type(char* addr, int len)
         }
         return 4;
     }
+}
+
+void sighandler(int sig)
+{
+    printf("\nQuiting...\n");
+    running = 0;
 }

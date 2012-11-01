@@ -1,3 +1,11 @@
+####################################################
+#         CT30A5001 - Network Programming          #
+#               Assignment 5: SCTP                 #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#                  answers.txt                     #
+####################################################
+
 - What are the differences between SCTP one-to-one and one-to-many styles? Why there are 2 “different” styles?
     - A one to one connection is like the classical TCP connection but working with SCTP associations, this allows to port TCP applications to SCTP very easily.
     - One to many is like UDP in a sense that you can handle multiple connections (SCTP associations) with only one socket.

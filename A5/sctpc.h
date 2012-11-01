@@ -1,13 +1,11 @@
 /*
-* CT30A5001 Network Programming
-* sctpc.h, STCP server and client example
-*
-* Contains header inclusions and function prototypes for SCTP client example.
-*
-* Author:
-*   Jussi Laakkonen
-*   1234567
-*   jussi.laakkonen@lut.fi
+####################################################
+#         CT30A5001 - Network Programming          #
+#               Assignment 5: SCTP                 #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#              sctp.h               #
+####################################################
 */
 
 #ifndef __SCTP_CLIENT_H_
@@ -17,11 +15,14 @@
 
 #include "sctp_utils.h"
 #include "protocol.h"
+#include "client_command_line.h"
+#include "game.h"
+#include <sys/ioctl.h>
 
-int run_test_client(int argc, char* argv[]);
+int client(int argc, char* argv[]);
 int testclient_input_error(char*);
-char* testclient_fill_random_data(int);
+char *testclient_fill_random_data(int);
 void print_addr_type(char*);
 int check_addr_type(char*, int);
-
+void sighandler(int sig);
 #endif

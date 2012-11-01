@@ -1,3 +1,13 @@
+/*
+####################################################
+#         CT30A5001 - Network Programming          #
+#               Assignment 5: SCTP                 #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#              protocol.h               #
+####################################################
+*/
+
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 
@@ -32,8 +42,17 @@ int send_start(int sctp_sock, int8_t count_column, int8_t count_row, SA *addr, s
 
 int send_turn(int sctp_sock, SA *server_addr, socklen_t server_addr_len);
 
+int send_column(int sctp_sock, int8_t column, SA *server_addr, socklen_t server_addr_len);
+
+int send_winner(int sctp_sock, int8_t winner_id, SA *server_addr, socklen_t server_addr_len);
+
 int send_error(int sctp_sock, int8_t error_code, char error_msg[], SA *server_addr, socklen_t server_addr_len);
 
+int send_area(int sctp_sock, char *area, int8_t rows, int8_t columns, SA *server_addr, socklen_t server_addr_len);
+
 int drop_connection(int sctp_sock, SA *server_addr, socklen_t server_addr_len);
+
+char *pack_area(char *grid, int8_t rows, int8_t columns);
+char *unpack_area(char *vector, int8_t rows, int8_t columns);
 
 #endif

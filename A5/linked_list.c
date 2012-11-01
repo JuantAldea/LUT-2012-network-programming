@@ -1,9 +1,7 @@
 /*
 ####################################################
 #         CT30A5001 - Network Programming          #
-# Assignment 4: Multicast Game announcement system #
-#                        &                         #
-#                   tic-tac-toe                    #
+#               Assignment 5: SCTP                 #
 #      Juan Antonio Aldea Armenteros (0404450)     #
 #           juan.aldea.armenteros@lut.fi           #
 #                  linked_list.c                   #
@@ -125,7 +123,7 @@ node_t *list_get_node_by_session_id(sctp_assoc_t session_id, linked_list_t *list
 int8_t list_get_first_free_player_id(linked_list_t *list)
 {
     if (list->count == 0){
-        return 0;
+        return 1;
     }
 
     if (list->count == 4){
@@ -137,13 +135,13 @@ int8_t list_get_first_free_player_id(linked_list_t *list)
 
     //get the ids in use
     for(node_t *i = list->head->next; i != list->tail; i = i->next){
-        ids_in_use[i->player_id] = 1;
+        ids_in_use[i->player_id - 1] = 1;
     }
 
     //return the first free id
     for (int i = 0; i < 4; i++){
         if (!ids_in_use[i]){
-            return i;
+            return i+1;
         }
     }
 
@@ -186,6 +184,7 @@ void list_sort_by_turn(linked_list_t *list)
     highest->next->previous = highest->previous;
     //store the supremum in the first position
     list_add_first(highest, list);
+    list->count--;
     count--;//one is in it's place
 
     while(count > 0){
@@ -204,6 +203,7 @@ void list_sort_by_turn(linked_list_t *list)
         remaining_max->next->previous = remaining_max->previous;
         //and place it at the start of the list
         list_add_first(remaining_max, list);
+        list->count--;
         count--;
     }
 }

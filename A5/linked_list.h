@@ -1,9 +1,7 @@
 /*
 ####################################################
 #         CT30A5001 - Network Programming          #
-# Assignment 4: Multicast Game announcement system #
-#                        &                         #
-#                   tic-tac-toe                    #
+#               Assignment 5: SCTP                 #
 #      Juan Antonio Aldea Armenteros (0404450)     #
 #           juan.aldea.armenteros@lut.fi           #
 #                   linked_list.h                  #

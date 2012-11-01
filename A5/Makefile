@@ -1,14 +1,10 @@
-#
-# CT30A5001 Network Programming
-# Makefile, STCP server and client example
-#
-# Contains Makefile for SCTP server and client example
-#
-# Author:
-#   Jussi Laakkonen
-#   1234567
-#   jussi.laakkonen@lut.fi
-
+####################################################
+#         CT30A5001 - Network Programming          #
+#               Assignment 5: SCTP                 #
+#      Juan Antonio Aldea Armenteros (0404450)     #
+#           juan.aldea.armenteros@lut.fi           #
+#                  Makefile                        #
+####################################################
 
 COMPILER=gcc
 OPTS=-Wall -pedantic -std=gnu99
@@ -16,7 +12,7 @@ LIBS=-lsctp
 DEBUG=-D__DEBUG_EN -g
 
 # Append generic sources here
-SOURCES_GEN=sctp_utils.c addresses.c protocol.c game.c linked_list.c
+SOURCES_GEN=sctp_utils.c addresses.c protocol.c game.c linked_list.c client_command_line.c
 # Append server sources here
 SOURCES_SRV=sctps.c $(SOURCES_GEN)
 # Append client sources here
@@ -28,7 +24,7 @@ CLINAME=sctpc
 TESTSRVNAME=test$(SRVNAME)
 TESTCLINAME=test$(CLINAME)
 
-all: debug tests
+all:
 	$(COMPILER) $(SOURCES_SRV) $(OPTS) $(LIBS) -o $(SRVNAME)
 	$(COMPILER) $(SOURCES_CLI) $(OPTS) $(LIBS) -o $(CLINAME)
 

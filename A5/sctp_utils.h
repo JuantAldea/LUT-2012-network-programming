@@ -1,11 +1,11 @@
-/* 
+/*
 * CT30A5001 Network Programming
 * sctp_utils.h, STCP server and client example
 *
 * Contains headers for both client and server to use. Also the prototypes for
-* utility functions are defined here. Note the defined abbreviation for struct 
+* utility functions are defined here. Note the defined abbreviation for struct
 * sockaddr.
-* 
+*
 * Author:
 *   Jussi Laakkonen
 *   1234567
@@ -15,7 +15,7 @@
 #ifndef __SCTP_UTILS_H_
 #define __SCTP_UTILS_H_
 
-#define SA  struct sockaddr
+#define SA struct sockaddr
 
 #include <sys/types.h>
 #include <stdio.h>
