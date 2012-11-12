@@ -20,9 +20,9 @@ int send_msg(int socket, uchar *msg, int msg_size)
     memcpy(wrapped_msg, msg, sizeof(uchar) * msg_size);
     wrapped_msg[wrapped_size    ] = '\r';
     wrapped_msg[wrapped_size + 1] = '\n';
-
+    printf("[send_msg DUMP]\n");
     dump_msg(wrapped_msg, wrapped_size);
-
+    printf("[send_msg DUMPED]\n");
     //send the whole msg
     int bytes_to_send = sizeof(uchar) * wrapped_size;
     int total_sent_bytes = 0;
@@ -48,6 +48,8 @@ int recv_msg(int socket, char *buffer)
 
     int total_recv_bytes = 0;
     int recv_bytes = recv(socket, &buffer[total_recv_bytes], MAX_MSG_SIZE, 0);
+    printf("[DUMP IN RECV]\n");
+    dump_msg((uchar*)buffer, recv_bytes);
     return recv_bytes;
     // while (buffer[total_recv_bytes - 1] != '\r' && buffer[total_recv_bytes] != '\n' && total_recv_bytes < MAX_MSG_SIZE){
     //     int recv_bytes = recv(socket, &buffer[total_recv_bytes], MAX_MSG_SIZE, 0);
@@ -79,19 +81,19 @@ int send_login(int socket, char *username, char *password)
 
 int send_username(int socket, char *username)
 {
-    int message_length = strlen(username) + 4 + 1; //USERusername\0
+    int message_length = strlen(username) + 4 + 1 + 1; //USER username\0
     char *buffer = (char*) malloc(sizeof(char) * message_length);
     memset(buffer, '\0', message_length);
-    sprintf(buffer, "USER%s", username);
+    sprintf(buffer, "USER %s", username);
     return send_msg(socket, (uchar *)buffer, message_length - 1);//remove \0
 }
 
 int send_password(int socket, char *password)
 {
-    int message_length = strlen(password) + 4 + 1; //PASSpassword\0
+    int message_length = strlen(password) + 4 + 1 + 1; //PASS password\0
     char *buffer = (char*) malloc(sizeof(char) * message_length);
     memset(buffer, '\0', message_length);
-    sprintf(buffer, "PASS%s", password);
+    sprintf(buffer, "PASS %s", password);
     return send_msg(socket, (uchar *)buffer, message_length - 1);//remove \0
 }
 

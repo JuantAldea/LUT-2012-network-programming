@@ -74,11 +74,13 @@ int client(char *address, char *port)
             int command = client_CLI(&message);
             switch(command){
                 case OPEN_COMMAND_CODE:
-                    printf("prepare_connection\n");
                     socket_descriptor = prepare_connection(address, port);
-                    printf("prepare_connection FIN\n");
-                    printf ("[SENDING ANONYMOUS LOGIN]->%d<-\n", send_anonymous_login(socket_descriptor));
-                    printf("[SENT]\n"); 
+                    char buffer[MAX_MSG_SIZE];
+                    memset(buffer, '\0', MAX_MSG_SIZE);
+                    printf("[RIGTH AFTER prepare_connection]\n");
+                    //printf("prepare_connection FIN\n");
+                    
+                    //printf("[SENT]\n"); 
                     not_connected = 0;
                     break;
                 case QUIT_COMMAND_CODE:
@@ -92,7 +94,6 @@ int client(char *address, char *port)
         }
     }
 
-    printf("[CONNECTED]\n");
 
     int number_of_fds = socket_descriptor + 1;
     int running = 1;
@@ -123,12 +124,13 @@ int client(char *address, char *port)
             memset(buffer, '\0', 2048);
             printf("[SLEEPING ON RECV]\n");
             int recv_bytes = recv_msg(socket_descriptor, buffer);
-            printf("ACTIVITY %d\n", recv_bytes);
+            printf("[SENDING ANONYMOUS LOGIN]->%d<-\n", send_anonymous_login(socket_descriptor));
+            printf("[SENT]\n");
             if (recv_bytes <= 0){
                 printf("Connection to the server lost\n");
                 running = 0;
             }else{
-                dump_msg((uchar*)buffer);
+                //dump_msg((uchar*)buffer, recv_bytes);
             }
         }
     }
@@ -149,7 +151,6 @@ int prepare_connection(char *address, char *port)
 
     int error = 0;
     struct addrinfo *res = NULL;
-    printf("%s\n", address);
     if ((error = getaddrinfo(address, port, &hints, &res)) < 0){
         perror(gai_strerror(error));
         freeaddrinfo(res);
