@@ -1,0 +1,63 @@
+###############################################
+#        CT30A5001 - Network Programming      #
+#        Assignment2: TCP multiuser chat      #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Readme                     #
+###############################################
+
+Description
+	- Implemented a multiclient server and a client for a chat service acording to the protocol specified in the requirements.
+	- The program supports up to 2GB messages (maximun of int32_t)
+	- It doesn't discard any messages due to protocol limitations
+		- No CRC or similar checksum data available
+	- Posible improvements not implemented:
+		- Add a timer to every partial receive for discarting data when the timer timeouts
+		- Save larger messages to a file
+
+File description
+	.
+	├── client.c: Client main function, also function related to message presentation
+	├── client.h: Header of client.c
+	├── client_commands.h: Constants definition file for the client CLI
+	├── client_t.c: client_t type related functions
+	├── client_t.h: client_t type definition
+	├── common.h: meta-include file
+	├── linked_list.c: linked_list_t type functions
+	├── linked_list.h: linked_list_t type definition
+	├── main.c: Main file, client-server selector
+	├── Makefile: Build instructions
+	├── protocol.c: Functions for receive and send messages according to the protocol rules
+	├── protocol.h: Header of protocol.c
+	├── protocol_constants.h: Constans for protocol message types
+	├── Readme: This file, infinite recursion
+	├── recv_buffer.c: Functions related to the recv_buffer_t type
+	├── recv_buffer.h: Definition of the recv_buffer_t type
+	├── server.c: Server main function, server CLI and functions for dealing with the messages
+	├── server.h: Header of server.c
+	├── server_commands.h: Constants definition file for the server CLI
+	└── system_headers.h: Just a bunch of system includes
+
+Implemented features
+	- Parameters managed by getopt
+	- Unlimited number of clients connected, user list is a double linked list (yeah, but only 1024 descriptors could be opened by default)
+	- stop/start commands availables in the server CLI
+
+Building
+	- make || make all || make build
+	- clean target also included
+
+Execution
+	- server: ./tcpchatclientserver -l <listening port>
+	- client: ./tcpchatclientserver -h <host address> -p <port> -n <name>
+
+Questions:
+ 	- Is there any limit for connection count on the server?
+ 		Yes, a process can open up to getrlimit(RLIMIT_NOFILE, ...) descriptors, acording to ulimit -n -> 1024 fds
+ 	- What are the three things that limit the amount of different stated connections on the server with TCP?
+ 	 	--
+
+References
+	- Beej's Guide to Network Programming
+	- Classroom wiki examples
+	- Some problems related to this assignment were discussed with Pablo Jesus Caro Martin (0404489), with mutual helping.
