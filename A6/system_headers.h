@@ -24,5 +24,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <time.h>
+#include <termios.h>
+
 
 #endif

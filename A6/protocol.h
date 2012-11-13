@@ -21,12 +21,16 @@
 int send_msg(int socket, uchar *msg, int msg_size);
 int recv_msg(int socket, char *buffer);
 
-int send_anonymous_login(int socket);
-int send_login(int socket, char *username, char *password);
+void send_anonymous_login(int socket);
+void send_login(int socket, char *username, char *password);
 
 int send_username(int socket, char *username);
 int send_password(int socket, char *password);
 int send_quit(int socket);
+int enter_passive_mode(int socket);
+int send_list(int socket);
+int send_cwd(int socket);
+int send_help(int socket);
 
 void dump_msg(uchar *msg, int length);
 

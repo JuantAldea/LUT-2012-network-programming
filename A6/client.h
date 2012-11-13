@@ -14,7 +14,7 @@
 #include "common.h"
 #include "client_commands.h"
 #include "client_states.h"
-#include <termios.h>
+
 int client_CLI(char **msg);
 
 int client(char *address, char *port);

@@ -20,7 +20,7 @@ int send_msg(int socket, uchar *msg, int msg_size)
     memcpy(wrapped_msg, msg, sizeof(uchar) * msg_size);
     wrapped_msg[msg_size    ] = '\r';
     wrapped_msg[msg_size + 1] = '\n';
-    dump_msg(wrapped_msg, wrapped_size);
+    //dump_msg(wrapped_msg, wrapped_size);
     //send the whole msg
     int bytes_to_send = sizeof(uchar) * wrapped_size;
     int total_sent_bytes = 0;
@@ -37,14 +37,14 @@ int recv_msg(int socket, char *buffer)
 {
     int bytes_availables = -1;
     //check the bytes availables in the socket
-    // ioctl(socket, FIONREAD, &bytes_availables);
-    // //received 0 bytes -> disconnect
-    // if (bytes_availables == 0){
-    //     return 0;
-    // }
+    ioctl(socket, FIONREAD, &bytes_availables);
+    //received 0 bytes -> disconnect
+    if (bytes_availables == 0){
+        return 0;
+    }
 
     int total_recv_bytes = 0;
-    int recv_bytes = recv(socket, &buffer[total_recv_bytes], MAX_MSG_SIZE, 0);
+    int recv_bytes = recv(socket, buffer, bytes_availables, 0);
     //printf("[DUMP IN RECV]\n");
     //dump_msg((uchar*)buffer, recv_bytes);
     return recv_bytes;
@@ -58,44 +58,32 @@ int recv_msg(int socket, char *buffer)
     return total_recv_bytes;
 }
 
-int send_anonymous_login(int socket)
+void send_anonymous_login(int socket)
 {
     char username[] = "anonymous";
     char password[] = "\0";
     //if both sends are succesfuf return the sum of ob, otherwise return -1, something failed.
-    return send_login(socket, username, password);
+    send_login(socket, username, password);
 }
 
-int send_login(int socket, char *username, char *password)
+void send_login(int socket, char *username, char *password)
 {
     printf("[LOGGIN IN...]\n");
-    int sent_user_bytes = send_username(socket, username);
+    if (send_username(socket, username) <= 0){
+        printf("[ERROR]: Sending the username\n");
+        return;
+    }
+
     char buffer[MAX_MSG_SIZE];
     memset(buffer, '\0', MAX_MSG_SIZE);
     int recv_bytes = recv_msg(socket, buffer);
     if (recv_bytes > 0){
-        printf("\t[USER RESPONSE] %s", buffer);
         if (!strncmp(buffer, "331", 3)){
-            int sent_password_bytes = send_password(socket, password);
-            memset(buffer, '\0', MAX_MSG_SIZE);
-            int recv_bytes = recv_msg(socket, buffer);
-            printf("\t[PASS RESPONSE] %s", buffer);
-            if (sent_password_bytes > 0 && recv_bytes > 0){
-                if (!strncmp(buffer, "230", 3)){
-                    printf("[LOGGED SUCCESFULY]\n");
-                }else{
-                    printf("[LOGIN ERROR]\n");
-                }
-            }else{
-                printf("\t[CONNECTION ERRROR]\n");
+            if (send_password(socket, password) <= 0){
+                printf("[ERROR]: sending the password\n");
             }
-        }else{
-            printf("\t[ERROR LOGIN]\n");
         }
-    }else{
-        printf("\t[CONNECTION ERRROR]\n");
     }
-    return -1;
 }
 
 int send_username(int socket, char *username)
@@ -104,7 +92,9 @@ int send_username(int socket, char *username)
     char *buffer = (char*) malloc(sizeof(char) * message_length);
     memset(buffer, '\0', message_length);
     sprintf(buffer, "USER %s", username);
-    return send_msg(socket, (uchar *)buffer, message_length);
+    int bytes_sent = send_msg(socket, (uchar *)buffer, message_length);
+    free(buffer);
+    return bytes_sent;
 }
 
 int send_password(int socket, char *password)
@@ -113,7 +103,9 @@ int send_password(int socket, char *password)
     char *buffer = (char*) malloc(sizeof(char) * message_length);
     memset(buffer, '\0', message_length);
     sprintf(buffer, "PASS %s", password);
-    return send_msg(socket, (uchar *)buffer, message_length);
+    int bytes_sent = send_msg(socket, (uchar *)buffer, message_length);
+    free(buffer);
+    return bytes_sent;
 }
 
 int send_quit(int socket)
@@ -122,17 +114,45 @@ int send_quit(int socket)
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
+int enter_passive_mode(int socket)
+{
+    char msg[] = "PASV";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_list(int socket)
+{
+    char msg[] = "LIST";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_cwd(int socket)
+{
+    char msg[] = "PWD";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_help(int socket)
+{
+    char msg[] = "HELP";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
 void dump_msg(uchar *msg, int length)
 {
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     for (int i = 0; i < length; i++){
         if(msg[i] == '\r'){
             printf("\\r");
         }else if(msg[i] == '\n'){
-            printf("\\n\n");
+            printf("\\n");
         }else if(msg[i] == '\0'){
             printf("\\0");
         }else{
             printf("%c", msg[i]);
         }
     }
+    printf("\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    printf("\n");
 }

@@ -23,7 +23,7 @@
 
 #define LOGIN_ANONYMOUS "anon"
 #define LOGIN           "login"
-
+#define HELP            "help"
 
 #define OPEN_COMMAND_CODE    0
 #define CD_COMMAND_CODE      1
@@ -35,6 +35,8 @@
 #define LS_COMMAND_CODE      7
 #define BINARY_COMMAND_CODE  8
 #define QUIT_COMMAND_CODE    9
+#define HELP_COMMAND_CODE    10
+
 
 #define LOGIN_ANONYMOUS_COMMAND_CODE 20
 #define LOGIN_COMMAND_CODE   21
