@@ -13,7 +13,8 @@
 
 #include "common.h"
 #include "client_commands.h"
-
+#include "client_states.h"
+#include <termios.h>
 int client_CLI(char **msg);
 
 int client(char *address, char *port);
@@ -21,5 +22,9 @@ int client(char *address, char *port);
 int prepare_connection(char *address, char *port);
 
 int client_parse_command(char *command);
+
+int read_greetings(int socket);
+
+void ask_login(char **username, char **password);
 
 #endif

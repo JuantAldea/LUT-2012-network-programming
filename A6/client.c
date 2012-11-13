@@ -16,7 +16,7 @@ int client_CLI(char **msg)
     ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
     char *buffer = NULL;
     buffer = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
-   
+
     if (fgets(buffer, bytes_on_stdin, stdin) == NULL){
         printf("Error while reading from STDIN\n");
     }
@@ -52,6 +52,10 @@ int client_CLI(char **msg)
         command_code = BINARY_COMMAND_CODE;
     }else if(!strncmp(buffer, QUIT_COMMAND, strlen(QUIT_COMMAND))){
         command_code = QUIT_COMMAND_CODE;
+    }else if(!strncmp(buffer, LOGIN_ANONYMOUS, strlen(LOGIN_ANONYMOUS))){
+        command_code = LOGIN_ANONYMOUS_COMMAND_CODE;
+    }else if(!strncmp(buffer, LOGIN, strlen(LOGIN))){
+        command_code = LOGIN_COMMAND_CODE;
     }
     free(buffer);
     return command_code;
@@ -59,48 +63,110 @@ int client_CLI(char **msg)
 
 int client(char *address, char *port)
 {
+    enum states client_state = NOT_CONNECTED;
+    enum transfer_modes transfer_mode = PASSIVE;
+
     fd_set ready_set;
     FD_ZERO(&ready_set);
-    int not_connected = 1;
     int socket_descriptor = -1;
-    while (not_connected){
+    int socket_transfer = -1;
+    int running = 1;
+
+    while (running){
+        //the program will only allow one transfer
+        int max_fd = (socket_descriptor > socket_transfer) ? socket_descriptor : socket_transfer;
+        max_fd = (max_fd > STDIN_FILENO) ? max_fd : STDIN_FILENO;
         FD_SET(STDIN_FILENO, &ready_set);
-        if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) < 0) {
+        if (socket_descriptor > 0){
+            FD_SET(socket_descriptor, &ready_set);
+        }
+
+        if(socket_transfer > 0){
+            FD_SET(socket_transfer, &ready_set);
+        }
+
+        if(select(max_fd + 1, &ready_set, NULL, NULL, NULL) < 0) {
             perror("Error in select");
             return EXIT_FAILURE;
         }
+
         if (FD_ISSET(STDIN_FILENO, &ready_set)){
             char *message = NULL;
             int command = client_CLI(&message);
             switch(command){
                 case OPEN_COMMAND_CODE:
-                    socket_descriptor = prepare_connection(address, port);
-                    char buffer[MAX_MSG_SIZE];
-                    memset(buffer, '\0', MAX_MSG_SIZE);
-                    printf("[RIGTH AFTER prepare_connection]\n");
-                    //printf("prepare_connection FIN\n");
-                    
-                    //printf("[SENT]\n"); 
-                    not_connected = 0;
+                    if(client_state == NOT_CONNECTED){
+                        socket_descriptor = prepare_connection(address, port);
+                        if (!read_greetings(socket_descriptor)){
+                            running = 0;
+                        }else{
+                            client_state = CONNECTED;
+                        }
+                    }else if (client_state > NOT_CONNECTED){
+                        printf("[COMMAND IGNORED]: Already connected.\n");
+                    }
+                    break;
+                case LOGIN_ANONYMOUS_COMMAND_CODE:
+                    if (client_state == CONNECTED){
+                        if (send_anonymous_login(socket_descriptor)){
+                            client_state = LOGGED_IN;
+                        }else{
+                            running = 0;
+                        }
+                    }else if (client_state > CONNECTED){
+                        printf("[COMMAND IGNORED]: Already logged in.\n");
+                    }
+                    break;
+                case LOGIN_COMMAND_CODE:
+                    if(client_state == CONNECTED){
+                        char *username, *password;
+                        ask_login(&username, &password);
+                        if (send_login(socket_descriptor, username, password)){
+                            client_state = LOGGED_IN;
+                        }else{
+                            running = 0;
+                        }
+                    }else if (client_state > CONNECTED){
+                        printf("[COMMAND IGNORED]: Already logged in.\n");
+                    }
                     break;
                 case QUIT_COMMAND_CODE:
-                    printf("[QUITTING...]\n");
-                    return 0;
+                    if (send_quit(socket_descriptor)){
+                        printf("[SCHEDULING QUIT]\n");
+                    }
                     break;
                 default:
                     break;
             }
             //free(message);
         }
+
+        if(FD_ISSET(socket_descriptor, &ready_set)){
+            char buffer[2048];
+            memset(buffer, '\0', 2048);
+            int recv_bytes = recv_msg(socket_descriptor, buffer);
+            if (recv_bytes <= 0){
+                printf("Connection to the server lost\n");
+                running = 0;
+            }else{
+                if(!strncmp(buffer, "221", 3)){
+                    printf("[DISCONNECTED FORM SERVER]: %s\n", buffer);
+                    running = 0;
+                }
+                dump_msg((uchar*)buffer, recv_bytes);
+            }
+        }
     }
 
 
+/*
     int number_of_fds = socket_descriptor + 1;
     int running = 1;
     //we are connected, now we will listen to stdin and the connection socket
     while(running){
         FD_SET(STDIN_FILENO, &ready_set);
         FD_SET(socket_descriptor, &ready_set);
+        printf("[SLEEPING ON SELECT]\n");
         //select descriptors with activity
         if(select(number_of_fds, &ready_set, NULL, NULL, NULL) < 0) {
             perror("Error in select");
@@ -119,13 +185,17 @@ int client(char *address, char *port)
 
         //activity in the socket
         if(FD_ISSET(socket_descriptor, &ready_set)){
-            
-            char buffer[2048]; 
+            char buffeytes <= 0){
+                printf("Connection to the server lost\n");
+                running = 0;
+            }else{
+                //dump_msg((uchar*)buffer, recv_bytes);
+            }
+        }
+    }r[2048];
             memset(buffer, '\0', 2048);
             printf("[SLEEPING ON RECV]\n");
             int recv_bytes = recv_msg(socket_descriptor, buffer);
-            printf("[SENDING ANONYMOUS LOGIN]->%d<-\n", send_anonymous_login(socket_descriptor));
-            printf("[SENT]\n");
             if (recv_bytes <= 0){
                 printf("Connection to the server lost\n");
                 running = 0;
@@ -134,6 +204,7 @@ int client(char *address, char *port)
             }
         }
     }
+    */
     close(socket_descriptor);
     return EXIT_SUCCESS;
 }
@@ -179,15 +250,77 @@ int prepare_connection(char *address, char *port)
             close(socket_descriptor);
             continue;
         }
+
         break;
     }
     freeaddrinfo(res);
-    
+
     //if no addr is found, we have a problem
     if (ptr == NULL){
         printf("[ERROR ON prepare_connection]\n");
         return -1;
     }
-    
     return socket_descriptor;
+}
+
+
+int read_greetings(int socket)
+{
+    char buffer[MAX_MSG_SIZE];
+    memset(buffer, '\0', MAX_MSG_SIZE);
+    int recv_bytes = recv_msg(socket, buffer);
+    if (recv_bytes <= 0){
+        printf("[ERROR]: There is some problem with the server.\n");
+        return EXIT_FAILURE;
+    }
+    if(!strncmp(buffer, "220", 3)){
+        printf("[CONNECTED TO THE SERVER]: %s", buffer);
+    }else{
+        printf("[PROBLEM]: %s", buffer);
+    }
+    return recv_bytes;
+}
+
+void ask_login(char **username, char **password)
+{
+    int bytes_on_stdin;
+    fd_set ready_set;
+
+    printf("Enter username:\n");
+
+    FD_ZERO(&ready_set);
+    FD_SET(STDIN_FILENO, &ready_set);
+    if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) >= 0) {
+        ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
+        printf("Bytes %d\n", bytes_on_stdin);
+        *username = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
+        memset(*username, '\0', bytes_on_stdin + 1);
+        if(fgets(*username, bytes_on_stdin, stdin) == NULL){
+            printf("Error while reading from STDIN\n");
+        }
+        fgetc(stdin);//read newline
+    }
+    printf("%s\n", *username);
+
+    printf("Enter password:\n");
+
+    struct termios t;
+    struct termios t2;
+    ioctl(0, TCGETS, &t);
+    ioctl(0, TCGETS, &t2);
+    t.c_lflag &= ~ECHO;
+    ioctl(0, TCSETS, &t);
+
+    FD_ZERO(&ready_set);
+    FD_SET(STDIN_FILENO, &ready_set);
+    if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) >= 0) {
+        ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
+        *password = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
+        memset(*password, '\0', bytes_on_stdin + 1);
+        if(fgets(*password, bytes_on_stdin, stdin) == NULL){
+            printf("Error while reading from STDIN\n");
+        }
+        fgetc(stdin);//read newline
+    }
+    ioctl(0, TCSETS, &t2);
 }

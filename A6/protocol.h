@@ -26,6 +26,7 @@ int send_login(int socket, char *username, char *password);
 
 int send_username(int socket, char *username);
 int send_password(int socket, char *password);
+int send_quit(int socket);
 
 void dump_msg(uchar *msg, int length);
 

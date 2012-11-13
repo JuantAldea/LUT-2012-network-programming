@@ -21,6 +21,10 @@
 #define BINARY_COMMAND  "binary"
 #define QUIT_COMMAND    "quit"
 
+#define LOGIN_ANONYMOUS "anon"
+#define LOGIN           "login"
+
+
 #define OPEN_COMMAND_CODE    0
 #define CD_COMMAND_CODE      1
 #define CLOSE_COMMAND_CODE   2
@@ -31,6 +35,9 @@
 #define LS_COMMAND_CODE      7
 #define BINARY_COMMAND_CODE  8
 #define QUIT_COMMAND_CODE    9
+
+#define LOGIN_ANONYMOUS_COMMAND_CODE 20
+#define LOGIN_COMMAND_CODE   21
 
 #define UNKOWN_COMMAND_CODE  255
 
