@@ -138,6 +138,16 @@ int send_help(int socket)
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
+int send_cd(int socket, char *path)
+{
+    char msg[] = "CWD\0";
+    char *buffer = malloc(sizeof(char) * (strlen(msg) + 1 + strlen(path) + 1));
+    sprintf(buffer, "%s %s", msg, path);
+    int sent_bytes = send_msg(socket, (uchar *)buffer, strlen(buffer) + 1);
+    free(buffer);
+    return sent_bytes;
+}
+
 void dump_msg(uchar *msg, int length)
 {
     printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
@@ -145,7 +155,7 @@ void dump_msg(uchar *msg, int length)
         if(msg[i] == '\r'){
             printf("\\r");
         }else if(msg[i] == '\n'){
-            printf("\\n");
+            printf("\\n\n");
         }else if(msg[i] == '\0'){
             printf("\\0");
         }else{

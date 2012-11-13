@@ -31,6 +31,7 @@ int enter_passive_mode(int socket);
 int send_list(int socket);
 int send_cwd(int socket);
 int send_help(int socket);
+int send_cd(int socket, char *path);
 
 void dump_msg(uchar *msg, int length);
 

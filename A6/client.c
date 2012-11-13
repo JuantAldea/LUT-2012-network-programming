@@ -20,7 +20,7 @@ int client_CLI(char **msg)
     memset(buffer, '\0', bytes_on_stdin);
 
     if (fgets(buffer, bytes_on_stdin, stdin) == NULL){
-        printf("Error while reading from STDIN\n");
+        printf("Error reading from STDIN\n");
         return UNKOWN_COMMAND_CODE;
     }
     dump_msg((uchar*)buffer, bytes_on_stdin);
@@ -30,9 +30,11 @@ int client_CLI(char **msg)
             break;
         }
     }
-    int a = strlen(buffer);
-    printf("kkkkkkkkkkk%c %d\n", buffer[0],buffer[1]=='\0');
-    printf("%d\n", a);
+    //int a = strlen(buffer);
+    //a = strlen(buffer);
+    //printf("%d\n", a);
+    //printf("kkkkkkkkkkk%c %d\n", buffer[0], buffer[1]=='\0');
+
     fgetc(stdin);//read newline
     if(!strlen(buffer)){
         *msg = (char*)malloc(sizeof(char));
@@ -45,9 +47,11 @@ int client_CLI(char **msg)
         command_code = OPEN_COMMAND_CODE;
     }else if(!strncmp(buffer, CD_COMMAND, strlen(CD_COMMAND))){
         command_code = CD_COMMAND_CODE;
-        int command_length = strlen(buffer);
-        if(command_length > 3){
-            printf("%s\n", &buffer[strlen(CD_COMMAND) + 1]);
+        int path_length = strlen(buffer) - (strlen(CD_COMMAND) + 1) + 1;
+        printf("asdadad:%d\n", path_length);
+        if(path_length > 0){
+            *msg = malloc(sizeof(char) * path_length);
+            memcpy(*msg, &buffer[strlen(CD_COMMAND) + 1], path_length);
         }else{
             printf("[ERROR]: Invalid path\n");
         }
@@ -158,12 +162,16 @@ int client(char *address, char *port)
                     }
                     break;
                 case CD_COMMAND_CODE:
+                    send_cd(socket_control, message);
                     break;
                 default:
                     printf("[ERROR] Unknow command\n");
                     break;
             }
-            //free(message);
+            if(message != NULL){
+                free(message);
+                message = NULL;
+            }
         }
 
         if(FD_ISSET(socket_control, &ready_set)){
@@ -199,6 +207,8 @@ int client(char *address, char *port)
                     char port[6];
                     sprintf(port, "%d", atoi(p1) * 256 + atoi(p2));
                     socket_transfer = prepare_connection(ip, port);
+                }else if(!strncmp(buffer, "250", 3)){
+                    printf("[SUCESS]: %s\n", buffer);
                 }else{
                     dump_msg((uchar*)buffer, recv_bytes);
                 }

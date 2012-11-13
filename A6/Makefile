@@ -8,7 +8,7 @@
 
 
 CC := gcc
-CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -O2 -pipe
+CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -pipe
 TARGET := tcpchatclientserver
 OBJ := client.o protocol.o
 
