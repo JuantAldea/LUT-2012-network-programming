@@ -26,20 +26,20 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    int port_number;
-
     while ((optc = getopt(argc, argv, "h:p:")) != -1) {
         switch (optc) {
             case 'h':
                 addr = optarg;
                 break;
             case 'p':
+            {
+                int port_number;
                 if (is_number(optarg, 10, &port_number)){
                     port = optarg;
-                    printf("Port number: %d\n", port_number);
                 }else{
                     printf("Invalid port number: %s\n", optarg);
                 }
+            }
                 break;
             case ':':
                 printf ("Something?\n");

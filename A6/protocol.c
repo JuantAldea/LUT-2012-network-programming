@@ -58,34 +58,6 @@ int recv_msg(int socket, char *buffer)
     return total_recv_bytes;
 }
 
-void send_anonymous_login(int socket)
-{
-    char username[] = "anonymous";
-    char password[] = "\0";
-    //if both sends are succesfuf return the sum of ob, otherwise return -1, something failed.
-    send_login(socket, username, password);
-}
-
-void send_login(int socket, char *username, char *password)
-{
-    printf("[LOGGIN IN...]\n");
-    if (send_username(socket, username) <= 0){
-        printf("[ERROR]: Sending the username\n");
-        return;
-    }
-
-    char buffer[MAX_MSG_SIZE];
-    memset(buffer, '\0', MAX_MSG_SIZE);
-    int recv_bytes = recv_msg(socket, buffer);
-    if (recv_bytes > 0){
-        if (!strncmp(buffer, "331", 3)){
-            if (send_password(socket, password) <= 0){
-                printf("[ERROR]: sending the password\n");
-            }
-        }
-    }
-}
-
 int send_username(int socket, char *username)
 {
     int message_length = strlen(username) + 4 + 1 + 1; //USER username\0
@@ -138,6 +110,26 @@ int send_help(int socket)
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
+int send_put(int socket, char *path)
+{
+    char msg[] = "STOR\0";
+    char *buffer = malloc(sizeof(char) * (strlen(msg) + 1 + strlen(path) + 1));
+    sprintf(buffer, "%s %s", msg, path);
+    int sent_bytes = send_msg(socket, (uchar *)buffer, strlen(buffer) + 1);
+    free(buffer);
+    return sent_bytes;
+}
+
+int send_get(int socket, char *path)
+{
+    char msg[] = "RETR\0";
+    char *buffer = malloc(sizeof(char) * (strlen(msg) + 1 + strlen(path) + 1));
+    sprintf(buffer, "%s %s", msg, path);
+    int sent_bytes = send_msg(socket, (uchar *)buffer, strlen(buffer) + 1);
+    free(buffer);
+    return sent_bytes;
+}
+
 int send_cd(int socket, char *path)
 {
     char msg[] = "CWD\0";
@@ -165,4 +157,66 @@ void dump_msg(uchar *msg, int length)
     printf("\n");
     printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
     printf("\n");
+}
+
+void send_file(int socket, char *path)
+{
+    printf("#######################\n");
+    uchar buffer[1024];
+    FILE *source = fopen(path, "r");
+    if (source == NULL){
+        printf("[ERROR] Wrong pathname.\n");
+        return;
+    }
+    int total_bytes_readed = 0;
+    int readed_bytes = 0;
+    while((readed_bytes = fread(buffer, sizeof(char), 1024, source)) > 0){
+        total_bytes_readed += readed_bytes;
+        int total_sent_bytes = 0;
+        while (total_sent_bytes < readed_bytes){
+            total_sent_bytes += send(socket, &(buffer[total_sent_bytes]), readed_bytes - total_sent_bytes, 0);
+        }
+    }
+
+    if(total_bytes_readed){
+        printf("Total bytes sent: %d\n", total_bytes_readed);
+    }
+
+    fclose(source);
+}
+
+int recv_file(int socket, char *path)
+{
+    uchar buffer[1024];
+    FILE *destination = fopen(path, "w");
+    if (destination == NULL){
+        printf("[ERROR] Wrong pathname.\n");
+        return 0;
+    }
+    int total_bytes_received = 0;
+    int received_bytes = 0;
+    while((received_bytes = recv(socket, buffer, 1024, 0)) > 0){
+        total_bytes_received += received_bytes;
+        if (!fwrite(buffer, sizeof(char), received_bytes, destination)){
+            printf("[ERROR] Problem writing the file\n");
+            return 0;
+        }
+    }
+
+    if(total_bytes_received){
+        printf("Total bytes received: %d\n", total_bytes_received);
+    }
+
+    fclose(destination);
+    return total_bytes_received;
+}
+
+void recv_ls(int socket)
+{
+    char *buffer = NULL;
+    int recv_bytes = recv_msg(socket, buffer);
+    if (recv_bytes > 0){
+        printf("%s\n", buffer);
+    }
+    free(buffer);
 }

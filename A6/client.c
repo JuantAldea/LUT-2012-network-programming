@@ -14,7 +14,6 @@ int client_CLI(char **msg)
 {
     int bytes_on_stdin;
     ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
-    printf("BYTES: %d\n", bytes_on_stdin);
     char *buffer = (char*)malloc(sizeof(char) * (bytes_on_stdin));
     //char buffer[3];
     memset(buffer, '\0', bytes_on_stdin);
@@ -23,20 +22,10 @@ int client_CLI(char **msg)
         printf("Error reading from STDIN\n");
         return UNKOWN_COMMAND_CODE;
     }
-    dump_msg((uchar*)buffer, bytes_on_stdin);
-    for (int i = 0; i<100; i++){
-        if (buffer[i]=='\0'){
-            printf("Longitud %d\n", i);
-            break;
-        }
-    }
-    //int a = strlen(buffer);
-    //a = strlen(buffer);
-    //printf("%d\n", a);
-    //printf("kkkkkkkkkkk%c %d\n", buffer[0], buffer[1]=='\0');
 
     fgetc(stdin);//read newline
     if(!strlen(buffer)){
+        free(buffer);
         *msg = (char*)malloc(sizeof(char));
         *msg[0] = '\0';
         return UNKOWN_COMMAND_CODE;
@@ -48,7 +37,6 @@ int client_CLI(char **msg)
     }else if(!strncmp(buffer, CD_COMMAND, strlen(CD_COMMAND))){
         command_code = CD_COMMAND_CODE;
         int path_length = strlen(buffer) - (strlen(CD_COMMAND) + 1) + 1;
-        printf("asdadad:%d\n", path_length);
         if(path_length > 0){
             *msg = malloc(sizeof(char) * path_length);
             memcpy(*msg, &buffer[strlen(CD_COMMAND) + 1], path_length);
@@ -63,31 +51,44 @@ int client_CLI(char **msg)
         command_code = PASSIVE_COMMAND_CODE;
     }else if(!strncmp(buffer, GET_COMMAND, strlen(GET_COMMAND))){
         command_code = GET_COMMAND_CODE;
-        //READ MORE THINGS
+        int path_length = strlen(buffer) - (strlen(GET_COMMAND) + 1) + 1;
+        if(path_length > 0){
+            *msg = malloc(sizeof(char) * path_length);
+            memcpy(*msg, &buffer[strlen(GET_COMMAND) + 1], path_length);
+        }else{
+            printf("[ERROR]: Invalid path\n");
+        }
     }else if(!strncmp(buffer, PUT_COMMAND, strlen(PUT_COMMAND))){
         command_code = PUT_COMMAND_CODE;
-        //READ MORE THINGS
+        int path_length = strlen(buffer) - (strlen(PUT_COMMAND) + 1) + 1;
+        if(path_length > 0){
+            *msg = malloc(sizeof(char) * path_length);
+            memcpy(*msg, &buffer[strlen(PUT_COMMAND) + 1], path_length);
+        }else{
+            printf("[ERROR]: Invalid path\n");
+        }
     }else if(!strncmp(buffer, LS_COMMAND, strlen(LS_COMMAND))){
         command_code = LS_COMMAND_CODE;
     }else if(!strncmp(buffer, BINARY_COMMAND, strlen(BINARY_COMMAND))){
         command_code = BINARY_COMMAND_CODE;
     }else if(!strncmp(buffer, QUIT_COMMAND, strlen(QUIT_COMMAND))){
         command_code = QUIT_COMMAND_CODE;
-    }else if(!strncmp(buffer, LOGIN_ANONYMOUS, strlen(LOGIN_ANONYMOUS))){
-        command_code = LOGIN_ANONYMOUS_COMMAND_CODE;
-    }else if(!strncmp(buffer, LOGIN, strlen(LOGIN))){
-        command_code = LOGIN_COMMAND_CODE;
     }else if(!strncmp(buffer, HELP, strlen(HELP))){
         command_code = HELP_COMMAND_CODE;
     }
-    //free(buffer);
+    free(buffer);
     return command_code;
 }
 
 int client(char *address, char *port)
 {
+    char *username = NULL;
+    char *password = NULL;
+    char *remote_path = NULL;
+    char *local_path = NULL;
     enum states client_state = NOT_CONNECTED;
     enum transfer_modes transfer_mode = PASSIVE;
+    enum transfer_types transfer_pending = NONE;
 
     fd_set ready_set;
     FD_ZERO(&ready_set);
@@ -120,49 +121,130 @@ int client(char *address, char *port)
                 case OPEN_COMMAND_CODE:
                     if(client_state == NOT_CONNECTED){
                         socket_control = prepare_connection(address, port);
-                        printf("[CONNECTING...]\n");
+                        printf("[CONNECTING]\n");
                     }else if (client_state > NOT_CONNECTED){
                         printf("[COMMAND IGNORED]: Already connected.\n");
                     }
                     break;
-                case LOGIN_ANONYMOUS_COMMAND_CODE:
-                    if (client_state == CONNECTED){
-                        send_anonymous_login(socket_control);
-                    }else if (client_state > CONNECTED){
-                        printf("[COMMAND IGNORED]: Already logged in.\n");
-                    }else{
-                        printf("[COMMAND IGNORED: Connect first\n");
-                    }
-                    break;
-                case LOGIN_COMMAND_CODE:
-                    if(client_state == CONNECTED){
-                        char *username, *password;
-                        ask_login(&username, &password);
-                        send_login(socket_control, username, password);
-                        free(username);
-                        free(password);
-                    }else if (client_state > CONNECTED){
-                        printf("[COMMAND IGNORED]: Already logged in.\n");
+                case CLOSE_COMMAND_CODE:
+                    if (client_state > NOT_CONNECTED){
+                        if (send_quit(socket_control)){
+                            close(socket_control);
+                            socket_control = -1;
+                            client_state = NOT_CONNECTED;
+                        }
                     }
                     break;
                 case QUIT_COMMAND_CODE:
-                    if (send_quit(socket_control)){
-                        printf("[SCHEDULING QUIT]\n");
+                    if (client_state > NOT_CONNECTED){
+                        if (send_quit(socket_control)){
+                            printf("[SCHEDULING QUIT]\n");
+                        }
+                    }else{
+                        running = 0;
                     }
                     break;
                 case PASSIVE_COMMAND_CODE:
+                    transfer_mode = PASSIVE;
                     if(!enter_passive_mode(socket_control)){
                         printf("[ERROR]: Quitting...");
                         running = 0;
                     }
                     break;
                 case LS_COMMAND_CODE:
-                    if(!send_list(socket_control)){
+                    if(transfer_mode == PASSIVE){
+                        if(!enter_passive_mode(socket_control)){
+                            printf("[ERROR]: Quitting...");
+                            running = 0;
+                        }
+                    }else{
+
+                    }
+
+                    if(send_list(socket_control)){
+                        transfer_pending = LS;
+                    }else{
                         printf("[ERROR LS]: Quitting...");
                     }
+
                     break;
                 case CD_COMMAND_CODE:
                     send_cd(socket_control, message);
+                    break;
+                case PUT_COMMAND_CODE:
+                {
+                    char *filename = strrchr(message, '/');
+                    if (filename == NULL){
+                        filename = message;
+                    }else if(filename[1] == '\0'){//last character is a /, name is invalid
+                        printf("[ERROR]: The path is a folder");
+                        filename = NULL;
+                    }else{
+                        filename++;
+                    }
+
+                    if (remote_path != NULL){
+                        free(remote_path);
+                    }
+                    if(local_path != NULL){
+                        free(local_path);
+                    }
+
+                    local_path  = strdup(message);
+                    remote_path = strdup(filename);
+
+                    if (filename != NULL){
+                        printf("MIERDA\n");
+                        if (transfer_mode == PASSIVE){
+                            if(!enter_passive_mode(socket_control)){
+                                printf("[ERROR]: Quitting...");
+                                running = 0;
+                            }
+                        }else{
+
+                        }
+                        send_put(socket_control, filename);
+                        transfer_pending = SEND;
+                    }else{
+
+                    }
+                }
+                    break;
+                case GET_COMMAND_CODE:
+                {
+
+                    char *filename = strrchr(message, '/');
+                    if (filename == NULL){
+                        filename = message;
+                    }else if(filename[1] == '\0'){//last character is a /, name is invalid
+                        printf("[ERROR]: The path is a folder");
+                        filename = NULL;
+                    }else{
+                        filename++;
+                    }
+
+                    if (remote_path != NULL){
+                        free(remote_path);
+                    }
+                    if(local_path != NULL){
+                        free(local_path);
+                    }
+                    remote_path = strdup(message);
+                    local_path  = strdup(filename);
+
+                    if (filename != NULL){
+                        if (transfer_mode == PASSIVE){
+                            if(!enter_passive_mode(socket_control)){
+                                printf("[ERROR]: Quitting...");
+                                running = 0;
+                            }
+                        }else{
+
+                        }
+                        send_get(socket_control, remote_path);
+                        transfer_pending = RECV;
+                    }
+                }
                     break;
                 default:
                     printf("[ERROR] Unknow command\n");
@@ -174,6 +256,7 @@ int client(char *address, char *port)
             }
         }
 
+
         if(FD_ISSET(socket_control, &ready_set)){
             char buffer[2048];
             memset(buffer, '\0', 2048);
@@ -183,10 +266,19 @@ int client(char *address, char *port)
                 running = 0;
             }else{
                 if(!strncmp(buffer, "220", 3)){
-                    printf("[CONNECTED TO THE SERVER]: %s", buffer);
                     client_state = CONNECTED;
+                    printf("[CONNECTED TO THE SERVER]: %s", buffer);
+                    ask_login(&username, &password);
+                    printf("[SENDING USERNAME...]\n");
+                    send_username(socket_control, username);
+                }else if(!strncmp(buffer, "331", 3)){
+                    printf("[USERNAME ACCEPTED]\n");
+                    printf("[SENDING PASSWORD...]\n");
+                    send_password(socket_control, password);
                 }else if(!strncmp(buffer, "221", 3)){
-                    printf("[DISCONNECTED FORM SERVER]: %s\n", buffer);
+                    printf("[DISCONNECTED FORM SERVER]\n");
+                    close(socket_control);
+                    socket_control = -1;
                     running = 0;
                     client_state = NOT_CONNECTED;
                 }else if(!strncmp(buffer, "421", 3)){
@@ -194,11 +286,10 @@ int client(char *address, char *port)
                     printf("[DISCONNECTED]: %s\n", buffer);
                     client_state = NOT_CONNECTED;
                 }else if(!strncmp(buffer, "230", 3)){
-                    printf("[LOGGED IN]: %s\n", buffer);
+                    printf("[LOGGED IN]\n");
                     client_state = LOGGED_IN;
-                }else if(!strncmp(buffer, "227", 3)){
-                    transfer_mode = PASSIVE;
-                    printf("[ENTERING PASSIVE MODE]: %s\n", buffer);
+                }else if(!strncmp(buffer, "227", 3)){;
+                    printf("[ENTERING PASSIVE MODE]\n");
                     char *server_info = strchr(buffer, '(');
                     char h1[3], h2[3], h3[3], h4[3], p1[3], p2[3];
                     sscanf(server_info,"(%[^,],%[^,],%[^,],%[^,],%[^,],%[^)])", h1, h2, h3, h4, p1, p2);
@@ -208,7 +299,23 @@ int client(char *address, char *port)
                     sprintf(port, "%d", atoi(p1) * 256 + atoi(p2));
                     socket_transfer = prepare_connection(ip, port);
                 }else if(!strncmp(buffer, "250", 3)){
-                    printf("[SUCESS]: %s\n", buffer);
+                    printf("[WORKING DIR CHANGED]\n");
+                }else if(!strncmp(buffer, "150", 3)){
+                    printf("[DATA] Begin of transfer.\n");
+                    if (transfer_pending == SEND){
+                        printf("alskdjakljdakljdak\n");
+                        send_file(socket_transfer, local_path);
+                    }
+
+                }else if(!strncmp(buffer, "226", 3)){
+                    printf("[DATA] End of transfer.\n");
+                    transfer_pending = NONE;
+                    if (socket_transfer != -1){
+                        close(socket_transfer);
+                        socket_transfer = -1;
+                    }
+                }else if(!strncmp(buffer, "530", 3)){
+                    printf("[ERROR] Login incorrect.\n");
                 }else{
                     dump_msg((uchar*)buffer, recv_bytes);
                 }
@@ -216,69 +323,28 @@ int client(char *address, char *port)
         }
 
         if(FD_ISSET(socket_transfer, &ready_set)){
-            int bytes_availables;
-            ioctl(socket_transfer, FIONREAD, &bytes_availables);
-            if(bytes_availables == 0){
-                close(socket_transfer);
-                socket_transfer = -1;
-                continue;
+            if(transfer_pending == LS){
+                int bytes_availables;
+                ioctl(socket_transfer, FIONREAD, &bytes_availables);
+                char *buffer = (char*)malloc(sizeof(char) * (bytes_availables + 1));
+                memset(buffer, '\0', sizeof(char) * (bytes_availables + 1));
+                int recv_bytes = recv_msg(socket_transfer, buffer);
+                if(recv_bytes > 0){
+                    printf("%s\n", buffer);
+                }
+                free(buffer);
+            }else if(transfer_pending == RECV){
+                recv_file(socket_transfer, local_path);
             }
-            printf("%d\n", bytes_availables);
-            char *buffer = (char*)malloc(sizeof(char) * bytes_availables);
-            int recv_bytes = recv_msg(socket_transfer, buffer);
-            printf("=============================================%d\n", recv_bytes);
-            dump_msg((uchar*)buffer, bytes_availables);
-            free(buffer);
+            close(socket_transfer);
+            socket_transfer = -1;
+            transfer_pending = NONE;
         }
     }
-
-
-/*
-    int number_of_fds = socket_control + 1;
-    int running = 1;
-    //we are connected, now we will listen to stdin and the connection socket
-    while(running){
-        FD_SET(STDIN_FILENO, &ready_set);
-        FD_SET(socket_control, &ready_set);
-        printf("[SLEEPING ON SELECT]\n");
-        //select descriptors with activity
-        if(select(number_of_fds, &ready_set, NULL, NULL, NULL) < 0) {
-            perror("Error in select");
-            return EXIT_FAILURE;
-        }
-        // //activity in stdin
-        // if (FD_ISSET(STDIN_FILENO, &ready_set)){
-        //     //parse the command
-        //     char *message = NULL;
-        //     int command = client_CLI(&message);
-        //     //and do what you have to do
-        //     //switch(command){
-        //     //}
-        //     free(message);
-        // }
-
-        //activity in the socket
-        if(FD_ISSET(socket_control, &ready_set)){
-            char buffeytes <= 0){
-                printf("Connection to the server lost\n");
-                running = 0;
-            }else{
-                //dump_msg((uchar*)buffer, recv_bytes);
-            }
-        }
-    }r[2048];
-            memset(buffer, '\0', 2048);
-            printf("[SLEEPING ON RECV]\n");
-            int recv_bytes = recv_msg(socket_control, buffer);
-            if (recv_bytes <= 0){
-                printf("Connection to the server lost\n");
-                running = 0;
-            }else{
-                //dump_msg((uchar*)buffer, recv_bytes);
-            }
-        }
-    }
-    */
+    free(username);
+    free(password);
+    free(local_path);
+    free(remote_path);
     close(socket_control);
     return EXIT_SUCCESS;
 }
@@ -338,23 +404,6 @@ int prepare_connection(char *address, char *port)
 }
 
 
-int read_greetings(int socket)
-{
-    char buffer[MAX_MSG_SIZE];
-    memset(buffer, '\0', MAX_MSG_SIZE);
-    int recv_bytes = recv_msg(socket, buffer);
-    if (recv_bytes <= 0){
-        printf("[ERROR]: There is some problem with the server.\n");
-        return EXIT_FAILURE;
-    }
-    if(!strncmp(buffer, "220", 3)){
-        printf("[CONNECTED TO THE SERVER]: %s", buffer);
-    }else{
-        printf("[PROBLEM]: %s", buffer);
-    }
-    return recv_bytes;
-}
-
 void ask_login(char **username, char **password)
 {
     int bytes_on_stdin;
@@ -364,6 +413,7 @@ void ask_login(char **username, char **password)
 
     FD_ZERO(&ready_set);
     FD_SET(STDIN_FILENO, &ready_set);
+
     if(select(STDIN_FILENO + 1, &ready_set, NULL, NULL, NULL) >= 0) {
         ioctl(STDIN_FILENO, FIONREAD, &bytes_on_stdin);
         *username = (char*)malloc(sizeof(char) * (bytes_on_stdin + 1));
@@ -373,6 +423,7 @@ void ask_login(char **username, char **password)
         }
         fgetc(stdin);//read newline
     }
+
     printf("Enter password:\n");
 
     struct termios t;
@@ -395,3 +446,4 @@ void ask_login(char **username, char **password)
     }
     ioctl(0, TCSETS, &t2);
 }
+

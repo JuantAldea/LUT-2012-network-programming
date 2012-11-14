@@ -14,4 +14,12 @@ enum transfer_modes
     PASSIVE
 };
 
+enum transfer_types
+{
+    NONE = 0,
+    LS,
+    SEND,
+    RECV
+};
+
 #endif
