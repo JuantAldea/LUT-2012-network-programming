@@ -1,7 +1,7 @@
 /*
 ###############################################
 #        CT30A5001 - Network Programming      #
-#        Assignment2: TCP multiuser chat      #
+#          Assignment 6: FTP Client           #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #                   main.c                    #
@@ -20,6 +20,7 @@ int main(int argc, char **argv)
     int optc = -1;
     char *port = NULL;
     char *addr = NULL;
+    char default_port[] = "21";
 
     if (argc < 2){ //-p27015 are two argvs
         help(argv[0]);
@@ -60,7 +61,10 @@ int main(int argc, char **argv)
                 break;
         }
     }
-    if (port != NULL && addr != NULL){
+    if (port == NULL){
+        port = default_port;
+    }
+    if (addr != NULL){
         client(addr, port);
     }else{
         printf("PROBLEM WITH PARAMS\n");

@@ -1,12 +1,13 @@
 /*
 ###############################################
 #        CT30A5001 - Network Programming      #
-#           Assignment 6: FTP client          #
+#          Assignment 6: FTP Client           #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #              client_commands.h              #
 ###############################################
 */
+
 #ifndef __CLIENT_COMMANDS_H__
 #define __CLIENT_COMMANDS_H__
 

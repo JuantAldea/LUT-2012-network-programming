@@ -1,7 +1,7 @@
 /*
 ###############################################
 #        CT30A5001 - Network Programming      #
-#        Assignment2: TCP multiuser chat      #
+#          Assignment 6: FTP Client           #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #                   client.c                  #
@@ -462,7 +462,7 @@ int open_active_mode_server(int control_socket, int ip[4], int port[2])
     struct sockaddr_in data_addr;
     socklen_t len = sizeof(data_addr);
     getsockname(control_socket, (struct sockaddr *)&data_addr, &len);
-    printf("%s\n", inet_ntoa(data_addr.sin_addr));
+    //printf("%s\n", inet_ntoa(data_addr.sin_addr));
 
 
     data_addr.sin_port = 0; //system will pick a suitable one
@@ -470,22 +470,22 @@ int open_active_mode_server(int control_socket, int ip[4], int port[2])
     if (bind(data_socket, (struct sockaddr*)&data_addr, sizeof (data_addr)) < 0) {
         perror("bind");
     }
-    if (getsockname(data_socket, (struct sockaddr*)&data_addr, &len) < 0) {
-        perror("getsockname");
-    }
+    // if (getsockname(data_socket, (struct sockaddr*)&data_addr, &len) < 0) {
+    //     perror("getsockname");
+    // }
     if (listen(data_socket, 1) < 0){
         perror("listen");
     }
 
-    if (getsockname(data_socket, (struct sockaddr *)&data_addr, &len) == -1){
-        perror("getsockname");
-    }else{
+    if (getsockname(data_socket, (struct sockaddr *)&data_addr, &len) == 0){
         int full_port = ntohs(data_addr.sin_port);
         port[0] = full_port >> 8;
         port[1] = full_port & 0xff;
         char *ip_str = inet_ntoa(data_addr.sin_addr);
         sscanf(ip_str,"%d.%d.%d.%d", &ip[0], &ip[1], &ip[2], &ip[3]);
         printf("%d %d %d\n", port[0], port[1], full_port);
+    }else{
+        perror("getsockname");
     }
     return data_socket;
 }
