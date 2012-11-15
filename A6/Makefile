@@ -9,7 +9,7 @@
 
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -pipe
-TARGET := tcpchatclientserver
+TARGET := ftpclient
 OBJ := client.o protocol.o
 
 build: all

@@ -35,27 +35,16 @@ int send_msg(int socket, uchar *msg, int msg_size)
 // returns in full_message by reference if the whole message has been received
 int recv_msg(int socket, char *buffer)
 {
-    int bytes_availables = -1;
-    //check the bytes availables in the socket
-    ioctl(socket, FIONREAD, &bytes_availables);
-    //received 0 bytes -> disconnect
-    if (bytes_availables == 0){
-        return 0;
+    int recv_bytes;
+    while ((recv_bytes = recv(socket, buffer, MAX_MSG_SIZE, MSG_PEEK)) > 0){
+        if (strchr(buffer, '\r') != NULL && strchr(buffer, '\n') != NULL){
+            int size = strchr(buffer, '\n') - buffer + 1;
+            int a = recv(socket, buffer, size, 0);
+            buffer[a] = 0;
+            return a;
+        }
     }
-
-    int total_recv_bytes = 0;
-    int recv_bytes = recv(socket, buffer, bytes_availables, 0);
-    //printf("[DUMP IN RECV]\n");
-    //dump_msg((uchar*)buffer, recv_bytes);
     return recv_bytes;
-    // while (buffer[total_recv_bytes - 1] != '\r' && buffer[total_recv_bytes] != '\n' && total_recv_bytes < MAX_MSG_SIZE){
-    //     int recv_bytes = recv(socket, &buffer[total_recv_bytes], MAX_MSG_SIZE, 0);
-    //     total_recv_bytes += recv_bytes;
-    //     if (recv_bytes == 0){
-    //         return 0;//disconnect
-    //     }
-    // }
-    return total_recv_bytes;
 }
 
 int send_username(int socket, char *username)
@@ -92,6 +81,13 @@ int enter_passive_mode(int socket)
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
+int enter_active_mode(int socket, int ip[4], int port[2])
+{
+    char msg[100];
+    sprintf(msg, "PORT %d,%d,%d,%d,%d,%d", ip[0], ip[1], ip[2], ip[3], port[0], port[1]);
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
 int send_list(int socket)
 {
     char msg[] = "LIST";
@@ -104,9 +100,10 @@ int send_cwd(int socket)
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
-int send_help(int socket)
+
+int send_binary(int socket)
 {
-    char msg[] = "HELP";
+    char msg[] = "TYPE I";
     return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
 }
 
@@ -159,64 +156,108 @@ void dump_msg(uchar *msg, int length)
     printf("\n");
 }
 
-void send_file(int socket, char *path)
+int send_file(int socket, char *path)
 {
-    printf("#######################\n");
-    uchar buffer[1024];
-    FILE *source = fopen(path, "r");
+    uchar buffer[MAX_MSG_SIZE];
+    FILE *source = fopen(path, "rb");
     if (source == NULL){
-        printf("[ERROR] Wrong pathname.\n");
-        return;
-    }
-    int total_bytes_readed = 0;
-    int readed_bytes = 0;
-    while((readed_bytes = fread(buffer, sizeof(char), 1024, source)) > 0){
-        total_bytes_readed += readed_bytes;
-        int total_sent_bytes = 0;
-        while (total_sent_bytes < readed_bytes){
-            total_sent_bytes += send(socket, &(buffer[total_sent_bytes]), readed_bytes - total_sent_bytes, 0);
-        }
+        printf("ERROR opening the file %s\n", strerror(errno));
+        return -1;
     }
 
-    if(total_bytes_readed){
-        printf("Total bytes sent: %d\n", total_bytes_readed);
+    struct timeval before, after;
+    gettimeofday(&before, NULL);
+    int readed_bytes = 0;
+    int total_sent_bytes = 0;
+    while((readed_bytes = fread(buffer, sizeof(char), MAX_MSG_SIZE, source)) > 0){
+        int sent_bytes = 0;
+        while (sent_bytes < readed_bytes){
+            sent_bytes += send(socket, &(buffer[sent_bytes]), readed_bytes - sent_bytes, 0);
+            total_sent_bytes += sent_bytes;
+        }
+    }
+    gettimeofday(&after, NULL);
+    if(total_sent_bytes){
+        printf("Total bytes sent: %d, transfer rate: %f Kilobytes/second\n", total_sent_bytes,
+            transfer_rate(total_sent_bytes, &after, &before));
     }
 
     fclose(source);
+    return total_sent_bytes;
 }
 
 int recv_file(int socket, char *path)
 {
-    uchar buffer[1024];
-    FILE *destination = fopen(path, "w");
-    if (destination == NULL){
-        printf("[ERROR] Wrong pathname.\n");
+    uchar buffer[MAX_MSG_SIZE];
+    int destination = open(path, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
+    //FILE *destination = fopen(path, "wb");
+
+    if (destination < 0){
+    //if (destination == NULL){
+        printf("ERROR opening the file %s\n", strerror(errno));
         return 0;
     }
+    struct timeval before, after;
+    gettimeofday(&before, NULL);
     int total_bytes_received = 0;
     int received_bytes = 0;
-    while((received_bytes = recv(socket, buffer, 1024, 0)) > 0){
+    while((received_bytes = recv(socket, buffer, MAX_MSG_SIZE, 0)) > 0){
         total_bytes_received += received_bytes;
-        if (!fwrite(buffer, sizeof(char), received_bytes, destination)){
-            printf("[ERROR] Problem writing the file\n");
-            return 0;
+        if (write(destination, buffer, received_bytes) <= 0){
+        //if (fwrite(buffer, sizeof(char), received_bytes, destination) <= 0){
+            printf("ERROR writing the file %s\n", strerror(errno));
+            return -1;
         }
     }
-
+    gettimeofday(&after, NULL);
     if(total_bytes_received){
-        printf("Total bytes received: %d\n", total_bytes_received);
+        printf("Total bytes received: %d transfer rate: %f Kilobytes/second\n", total_bytes_received,
+            transfer_rate(total_bytes_received, &after, &before));
     }
 
-    fclose(destination);
+    close(destination);
+    //fclose(destination);
     return total_bytes_received;
 }
 
-void recv_ls(int socket)
+int recv_ls(int socket)
 {
-    char *buffer = NULL;
+    char buffer[MAX_MSG_SIZE];
+    memset(buffer, 0, MAX_MSG_SIZE);
     int recv_bytes = recv_msg(socket, buffer);
     if (recv_bytes > 0){
-        printf("%s\n", buffer);
+        printf("%s", buffer);
     }
-    free(buffer);
+    return recv_bytes;
+}
+
+/* extras*/
+int send_help(int socket)
+{
+    char msg[] = "HELP";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_syst(int socket)
+{
+    char msg[] = "SYST";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_stat(int socket)
+{
+    char msg[] = "STAT";
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+int send_raw(int socket, char *msg)
+{
+    return send_msg(socket, (uchar *)msg, strlen(msg) + 1);
+}
+
+float transfer_rate(int size, struct timeval *after, struct timeval *before)
+{
+    long int delta = after->tv_usec + 1000000 * after->tv_sec - (before->tv_usec + 1000000 * before->tv_sec);
+    double seconds = delta /(double)1000000;
+    return (size/(double)1024)/seconds;
 }

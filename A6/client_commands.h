@@ -20,10 +20,11 @@
 #define LS_COMMAND      "ls"
 #define BINARY_COMMAND  "binary"
 #define QUIT_COMMAND    "quit"
+#define HELP_COMMAND    "help"
+#define SYST_COMMAND    "syst"
+#define STATUS_COMMAND  "status"
+#define RAW_COMMAND     "raw"
 
-#define LOGIN_ANONYMOUS "anon"
-#define LOGIN           "login"
-#define HELP            "help"
 
 #define OPEN_COMMAND_CODE    0
 #define CD_COMMAND_CODE      1
@@ -36,7 +37,11 @@
 #define BINARY_COMMAND_CODE  8
 #define QUIT_COMMAND_CODE    9
 #define HELP_COMMAND_CODE    10
+#define STATUS_COMMAND_CODE  11
+#define SYST_COMMAND_CODE    12
+#define RAW_COMMAND_CODE     13
 
+#define EOF_COMMAND_CODE     254
 #define UNKOWN_COMMAND_CODE  255
 
 #endif

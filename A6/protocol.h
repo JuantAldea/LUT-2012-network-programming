@@ -26,17 +26,23 @@ int send_password(int socket, char *password);
 int send_quit(int socket);
 int send_list(int socket);
 int send_cwd(int socket);
-int send_help(int socket);
 int send_cd(int socket, char *path);
 int send_put(int socket, char *path);
 int send_get(int socket, char *path);
+int send_binary(int socket);
+
+int send_help(int socket);
+int send_syst(int socket);
+int send_stat(int socket);
+int send_raw(int socket, char *msg);
 
 int enter_passive_mode(int socket);
+int enter_active_mode(int socket, int ip[4], int port[2]);
 
-void recv_ls(int socket);
+int recv_ls(int socket);
 int recv_file(int socket, char *path);
-void send_file(int socket, char *path);
+int send_file(int socket, char *path);
 
 void dump_msg(uchar *msg, int length);
-
+float transfer_rate(int size, struct timeval *before, struct timeval *after);
 #endif
