@@ -12,6 +12,8 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
+
 
 #define uchar unsigned char
 

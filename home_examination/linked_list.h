@@ -62,5 +62,5 @@ void list_reverse_print(linked_list_t *list);
 
 
 node_t *list_search_by_addrinfo(struct sockaddr_storage *addr, linked_list_t *list);
-
+node_t *list_search_by_addr(struct sockaddr_storage *addr, linked_list_t *list);
 #endif

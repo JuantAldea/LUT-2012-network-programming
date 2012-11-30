@@ -10,7 +10,7 @@
 CC := gcc
 CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -pipe
 TARGET := server
-OBJ := linked_list.o map.c md5.c tcp.c map_server.c udp.c game_server.c
+OBJ := linked_list.o map.c md5.c tcp.c map_server.c udp.c game_server.c chat_server.c
 
 build: all
 
@@ -25,3 +25,5 @@ $(TARGET): $(OBJ) server.c
 
 clean:
 	rm -f *.o $(TARGET)
+	rm -f game
+

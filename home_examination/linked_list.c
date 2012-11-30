@@ -104,3 +104,28 @@ node_t *list_search_by_addrinfo(struct sockaddr_storage *addr, linked_list_t *li
     }
     return NULL;
 }
+
+node_t *list_search_by_addr(struct sockaddr_storage *addr, linked_list_t *list)
+{
+    for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
+        player_info_t *info = (player_info_t *)i->data;
+        if (addr->ss_family == info->addr.ss_family){
+            if (addr->ss_family == AF_INET){
+                if(!memcmp(&((struct sockaddr_in*)&info->addr)->sin_addr,
+                    &((struct sockaddr_in*)addr)->sin_addr,
+                     sizeof(struct in_addr))){
+                    return i;
+                }
+            }else if (addr->ss_family == AF_INET6){
+                if(!memcmp(&((struct sockaddr_in6*)&info->addr)->sin6_addr,
+                    &((struct sockaddr_in6*)addr)->sin6_addr,
+                     sizeof(struct in6_addr))){
+                    return i;
+                }
+            }
+        }else{
+            printf("family\n");
+        }
+    }
+    return NULL;
+}

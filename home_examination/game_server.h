@@ -19,4 +19,10 @@ void parse_mapcycle(linked_list_t **list);
 void delete_mapcycle_list(linked_list_t **list);
 void game_server_init();
 void game_server_shutdown();
+void remove_idle_players();
+
+int send_connect(int socket, struct sockaddr *addr, socklen_t address_len);
+int send_ready(int socket, struct sockaddr *addr, socklen_t address_len);
+int send_spawn(int socket, player_info_t *player);
+uint8_t get_first_free_id();
 #endif

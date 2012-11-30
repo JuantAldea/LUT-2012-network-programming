@@ -223,6 +223,7 @@ int main() {
 
   // Player
   player* pl1 = new_player(playerid,startx,starty,HEALTH);
+  player* pl2 = new_player(2,0,0,HEALTH);
 
   initscr(); // Start ncurses
   noecho(); // Disable echoing of terminal input
@@ -244,6 +245,7 @@ int main() {
   clear_log();
   prepare_horizontal_line(WIDTH);
   ui_draw_grid(game, pl1);
+  ui_draw_grid(game, pl2);
 
   fd_set readfs;
   int rval = 0;

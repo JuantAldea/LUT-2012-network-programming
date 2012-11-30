@@ -18,6 +18,7 @@ void game_server_init()
 
 void game_server_shutdown()
 {
+    free_map(current_map);
     free(current_map);
     delete_mapcycle_list(&mapcycle_list);
 }
@@ -33,43 +34,53 @@ void game_server(int socket)
     if (recvfrom(socket, &recvbuffer, 1024, 0, (struct sockaddr*)&sender_address, &sender_address_size) < 0){
         perror("Recvfrom multicast");
     }
+    //try to find the client
+    node_t *player_node = list_search_by_addrinfo(&sender_address, player_list);
     printf("Game Server\n");
     switch (recvbuffer[0]){
-        case CONNECT:
-        {
-
-        }
-        break;
-        case READY:
-        default:
-        {
-            node_t *player_node = list_search_by_addrinfo(&sender_address, player_list);
+        case CONNECT:{
             if (player_node == NULL){
-                player_info_t *player_info = malloc(sizeof(player_info_t));
-                player_info->addr = sender_address;
-                player_info->addr_len = sender_address_size;
-                player_info->chat_descriptor = -1;
-                player_info->playerID = -1;
-                player_info->current_health = HEALTH_POINTS;
-                player_info->position[0] = 5;
-                player_info->position[1] = 5;
-                player_info->frags = 0;
-                player_info->deaths = 0;
-                memset(&player_info->last_action, 0, sizeof(struct timeval));
-                player_info->last_udp_package = 0;
-                send_game_info(socket, player_info);
-                player_node = list_create_node(player_info);
-                list_add_last(player_node, player_list);
+                if (player_list->count < current_map->max_players){
+                    player_info_t *player_info = malloc(sizeof(player_info_t));
+                    player_info->addr = sender_address;
+                    player_info->addr_len = sender_address_size;
+                    player_info->chat_descriptor = -1;
+                    player_info->playerID = get_first_free_id();
+                    player_info->current_health = HEALTH_POINTS;
+                    player_info->position[0] = current_map->starting_positions[player_info->playerID - 1][0];
+                    player_info->position[1] = current_map->starting_positions[player_info->playerID - 1][1];
+                    player_info->frags  = 0;
+                    player_info->deaths = 0;
+                    player_info->last_udp_package = 0;
+                    gettimeofday(&player_info->last_action, NULL);
+                    send_game_info(socket, player_info);
+                    player_node = list_create_node(player_info);
+                    list_add_last(player_node, player_list);
+                }else{
+                    //send error, server full
+                }
             }
         }
         break;
+        case READY:{
+            //the client is known
+            if (player_node != NULL){
+                send_spawn(socket, (player_info_t*)player_node->data);
+            }
+        }
+        default:
+        break;
+    }
+    //update the idle time;
+    if (player_node != NULL){
+        gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
     }
 }
 
 int send_game_info(int socket, player_info_t *player)
 {
-    char *buffer = malloc(sizeof(char) * 40  + sizeof(uint8_t) * 3);
-    memset(buffer, 0, 11);
+    char buffer[43];
+    memset(buffer, 0, 43);
     buffer[0] = GAME_INFO;
     buffer[1] = player->playerID;
     buffer[2] = player->current_health;
@@ -90,13 +101,13 @@ int send_ready(int socket, struct sockaddr *addr, socklen_t address_len)
     return sendto(socket, &buffer, 1, 0, addr, address_len);
 }
 
-int send_spawn(int socket, struct sockaddr *addr, socklen_t address_len)
+int send_spawn(int socket, player_info_t *player)
 {
     char buffer[3];
     buffer[0] = SPAWN;
-    buffer[1] = 5;
-    buffer[2] = 5;
-    return sendto(socket, buffer, 1, 0, addr, address_len);
+    buffer[1] = player->position[0];
+    buffer[2] = player->position[1];
+    return sendto(socket, buffer, 3, 0, (struct sockaddr*)&player->addr, player->addr_len);
 }
 
 void parse_mapcycle(linked_list_t **list)
@@ -134,4 +145,26 @@ void delete_mapcycle_list(linked_list_t **list)
     list_delete(*list);
     free(*list);
     *list = NULL;
+}
+
+uint8_t get_first_free_id()
+{
+    int max_players = current_map->max_players;
+    if (max_players <= player_list->count){
+        return -1;
+    }
+    uint8_t used_ids[max_players];
+    memset(used_ids, 0, max_players);
+
+    for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
+        player_info_t *player = (player_info_t *)i->data;
+        used_ids[player->playerID - 1] = 1;
+    }
+
+    for (uint8_t i = 0; i < max_players; i++){
+        if (!used_ids[i]){
+            return i + 1;
+        }
+    }
+    return -1;
 }

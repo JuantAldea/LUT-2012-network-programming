@@ -5,7 +5,7 @@
 
 #define BACKLOG 100
 
-int prepare_server_TCP (char *port);
+int prepare_server_TCP (char *port, short family);
 int prepare_connection_TCP(char *address, char *port);
 
 #endif

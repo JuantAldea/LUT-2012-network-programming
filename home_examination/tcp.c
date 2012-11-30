@@ -1,11 +1,11 @@
 #include "tcp.h"
 
-int prepare_server_TCP (char *port)
+int prepare_server_TCP (char *port, short family)
 {
     struct addrinfo hints;
     //fill all the fields with zero, just to be sure. Actually it crashed without this.
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC; //don't care ipv4 or ipv6
+    hints.ai_family = family;//don't care ipv4 or ipv6
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; //automatic self ip
     hints.ai_protocol = IPPROTO_TCP;
