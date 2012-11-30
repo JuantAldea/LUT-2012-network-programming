@@ -121,7 +121,7 @@ char* md5(char * initial_msg, size_t initial_len)
 }
 
 
-void md5_from_file(char *filepath, char hash[32])
+void md5_from_file(char *filepath, char hash[33])
 {
     char *output = NULL;
 
@@ -145,7 +145,7 @@ void md5_from_file(char *filepath, char hash[32])
 
         // Calculate md5 sum and free.
         output = (char*)md5(file_content, size);
-        memcpy(hash, output, 32);
+        memcpy(hash, output, 33);
         free(output);
         free(file_content);
         fclose(fd);

@@ -14,4 +14,9 @@
 void game_server(int socket);
 int send_game_info(int socket, player_info_t *player);
 
+void print_mapcycle(linked_list_t *list);
+void parse_mapcycle(linked_list_t **list);
+void delete_mapcycle_list(linked_list_t **list);
+void game_server_init();
+void game_server_shutdown();
 #endif

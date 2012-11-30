@@ -9,8 +9,5 @@
 #include "map_server.h"
 #include "game_server.h"
 
-void print_mapcycle(linked_list_t *list);
-void parse_mapcycle(linked_list_t **list);
-void delete_mapcycle_list(linked_list_t **list);
 
 #endif

@@ -11,8 +11,8 @@
 
 typedef struct map_s map_t;
 struct map_s{
-    char hash[32];
-    int map_id;
+    char hash[33];
+    char map_id[9];
     int rows;
     int colums;
     int frag_limit;
@@ -24,9 +24,9 @@ struct map_s{
 
 void free_map(map_t *map);
 int read_map(char *path, map_t *map);
-int recv_map(int socket, char **map_id);
+int recv_map(int socket, char *map_id);
 int send_map(int socket, char *map_id);
-void print_map(map_t *map);
+void print_map(map_t map);
 
 #endif
 
