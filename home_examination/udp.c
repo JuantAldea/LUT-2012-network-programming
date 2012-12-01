@@ -7,6 +7,7 @@ int prepare_server_UDP (char *port, short family)
     hints.ai_family = family;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = IPPROTO_UDP;
+    hints.ai_flags = AI_PASSIVE;
     int error = 0;
     struct addrinfo *res = NULL;
     if ((error = getaddrinfo(NULL, port, &hints, &res)) < 0){
@@ -86,3 +87,4 @@ int prepare_client_UDP(char *address, char *port, struct sockaddr *server, sockl
 
     return socket_descriptor;
 }
+

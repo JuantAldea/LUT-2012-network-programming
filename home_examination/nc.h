@@ -1,5 +1,8 @@
 #include <stdint.h>
-
+#include "system_headers.h"
+#include "game_protocol.h"
+#include "udp.h"
+#include "tcp.h"
 // Predefined widht and height - only for demonstration
 #define WIDTH 20
 #define HEIGHT 15

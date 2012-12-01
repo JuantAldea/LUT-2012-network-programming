@@ -4,15 +4,12 @@
 #include "system_headers.h"
 #include "linked_list.h"
 #include "map.h"
+#include "game_protocol.h"
 
-#define CONNECT 0
-#define GAME_INFO 1
-#define READY 3
-#define SPAWN 4
 
 #define HEALTH_POINTS 10
 void game_server(int socket);
-int send_game_info(int socket, player_info_t *player);
+
 
 void print_mapcycle(linked_list_t *list);
 void parse_mapcycle(linked_list_t **list);
@@ -21,8 +18,7 @@ void game_server_init();
 void game_server_shutdown();
 void remove_idle_players();
 
-int send_connect(int socket, struct sockaddr *addr, socklen_t address_len);
-int send_ready(int socket, struct sockaddr *addr, socklen_t address_len);
-int send_spawn(int socket, player_info_t *player);
+
+
 uint8_t get_first_free_id();
 #endif

@@ -18,7 +18,6 @@ void game_server_init()
 
 void game_server_shutdown()
 {
-    free_map(current_map);
     free(current_map);
     delete_mapcycle_list(&mapcycle_list);
 }
@@ -53,11 +52,13 @@ void game_server(int socket)
                     player_info->deaths = 0;
                     player_info->last_udp_package = 0;
                     gettimeofday(&player_info->last_action, NULL);
-                    send_game_info(socket, player_info);
+                    send_game_info(socket, current_map, player_info);
                     player_node = list_create_node(player_info);
                     list_add_last(player_node, player_list);
+                    printf("[GAME SERVER]: Player %d connected\n", player_info->playerID);
                 }else{
                     //send error, server full
+                    printf("[GAME SERVER]: Server full\n");
                 }
             }
         }
@@ -65,50 +66,24 @@ void game_server(int socket)
         case READY:{
             //the client is known
             if (player_node != NULL){
+                printf("[GAME SERVER]: Sending spawn to Player %d\n", ((player_info_t*)player_node->data)->playerID);
                 send_spawn(socket, (player_info_t*)player_node->data);
             }
         }
         default:
         break;
     }
+
     //update the idle time;
     if (player_node != NULL){
         gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
     }
+
+    if(((player_info_t*)player_node->data)->frags >= current_map->frag_limit){
+        //rotate map
+    }
 }
 
-int send_game_info(int socket, player_info_t *player)
-{
-    char buffer[43];
-    memset(buffer, 0, 43);
-    buffer[0] = GAME_INFO;
-    buffer[1] = player->playerID;
-    buffer[2] = player->current_health;
-    memcpy(&buffer[3], current_map_id, 8);
-    memcpy(&buffer[11], current_map->hash, 32);
-    return sendto(socket, buffer, 43, 0, (struct sockaddr*)&player->addr, player->addr_len);
-}
-
-int send_connect(int socket, struct sockaddr *addr, socklen_t address_len)
-{
-    char buffer = CONNECT;
-    return sendto(socket, &buffer, 1, 0, addr, address_len);
-}
-
-int send_ready(int socket, struct sockaddr *addr, socklen_t address_len)
-{
-    char buffer = READY;
-    return sendto(socket, &buffer, 1, 0, addr, address_len);
-}
-
-int send_spawn(int socket, player_info_t *player)
-{
-    char buffer[3];
-    buffer[0] = SPAWN;
-    buffer[1] = player->position[0];
-    buffer[2] = player->position[1];
-    return sendto(socket, buffer, 3, 0, (struct sockaddr*)&player->addr, player->addr_len);
-}
 
 void parse_mapcycle(linked_list_t **list)
 {
@@ -167,4 +142,15 @@ uint8_t get_first_free_id()
         }
     }
     return -1;
+}
+
+int rotate_map()
+{
+    for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
+        player_info_t *player = (player_info_t *)i->data;
+        if (player->frags >= current_map->frag_limit){
+            return 1;
+        }
+    }
+    return 0;
 }

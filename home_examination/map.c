@@ -1,24 +1,11 @@
 #include "map.h"
 
-void free_map(map_t *map)
-{
-    for (int i = 0; i < map->number_of_blocks; i++){
-        free(map->block_positions[i]);
-    }
-    free(map->block_positions);
-
-    for (int i = 0; i < map->max_players; i++){
-        free(map->starting_positions[i]);
-    }
-    free(map->starting_positions);
-}
-
 int read_map(char *path, map_t *map)
 {
     FILE *map_file = fopen(path, "r");
     int readed_bytes;
+    memset(map, 0, sizeof(map_t));
     md5_from_file(path, map->hash);
-    printf("%s\n", map->hash);
     size_t size = 255;
     char *buffer = malloc(size);
     //map id
@@ -26,34 +13,29 @@ int read_map(char *path, map_t *map)
     sscanf(buffer,"%s", map->map_id);
     //rows
     readed_bytes = getline(&buffer, &size, map_file);
-    sscanf(buffer,"%d", &map->rows);
+    sscanf(buffer,"%"SCNu8, &map->rows);
     // //colums
     readed_bytes = getline(&buffer, &size, map_file);
-    sscanf(buffer,"%d", &map->colums);
+    sscanf(buffer,"%"SCNu8, &map->colums);
     //number of blocks
     readed_bytes = getline(&buffer, &size, map_file);
-    sscanf(buffer,"%d", &map->number_of_blocks);
-
+    sscanf(buffer,"%"SCNu8, &map->number_of_blocks);
     //blocks
-    map->block_positions = malloc(sizeof(int*) * map->number_of_blocks);
     for(int i = 0; i < map->number_of_blocks; i++){
-        map->block_positions[i] = malloc(sizeof(int*) * 2);
         readed_bytes = getline(&buffer, &size, map_file);
-        sscanf(buffer,"%d %d", &map->block_positions[i][0], &map->block_positions[i][1]);
+        sscanf(buffer,"%"SCNu8" %"SCNu8, &map->block_positions[i][0], &map->block_positions[i][1]);
     }
     //max players
     readed_bytes = getline(&buffer, &size, map_file);
-    sscanf(buffer,"%d", &map->max_players);
+    sscanf(buffer,"%"SCNu8, &map->max_players);
     //starting positions
-    map->starting_positions = malloc(sizeof(int*) * map->max_players);
     for(int i = 0; i < map->max_players; i++){
-        map->starting_positions[i] = malloc(sizeof(int*) * 2);
         readed_bytes = getline(&buffer, &size, map_file);
-        sscanf(buffer,"%d %d", &map->starting_positions[i][0], &map->starting_positions[i][1]);
+        sscanf(buffer,"%"SCNu8" %"SCNu8, &map->starting_positions[i][0], &map->starting_positions[i][1]);
     }
     //frag limit
     readed_bytes = getline(&buffer, &size, map_file);
-    sscanf(buffer,"%d", &map->frag_limit);
+    sscanf(buffer,"%"SCNu8, &map->frag_limit);
     fclose(map_file);
     free(buffer);
     buffer = NULL;
@@ -68,7 +50,7 @@ int send_map(int socket, char *map_id)
     char *map_path = malloc(strlen(map_id) + strlen(SERVER_MAP_FOLDER) + strlen(MAP_FILE_EXTENSION) + 2);
     sprintf(map_path, "%s/%s%s", SERVER_MAP_FOLDER, map_id, MAP_FILE_EXTENSION);
     FILE *source = fopen(map_path, "rb");
-    printf("%s\n", map_path);
+    printf("Send map %s\n", map_path);
     if (source == NULL){
         printf("ERROR opening the file %s\n", strerror(errno));
         return -1;
@@ -112,7 +94,7 @@ int recv_map(int socket, char *map_id)
     sprintf(path, "%s/%.*s%s", CLIENT_MAP_FOLDER, 8, map_id, MAP_FILE_EXTENSION);
     printf("%s\n", path);
 
-    int destination = open(path, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
+    int destination = open(path, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR);
 
     if (destination < 0){
         printf("ERROR opening the file %s\n", strerror(errno));
@@ -136,16 +118,17 @@ int recv_map(int socket, char *map_id)
 
 void print_map(map_t map)
 {
+    printf("Hash:    %.*s\n", 32, map.hash);
     printf("ID:      %s\n", map.map_id);
-    printf("Rows:    %d\n", map.rows);
-    printf("Cols:    %d\n", map.colums);
-    printf("Frags:   %d\n", map.frag_limit);
-    printf("Players: %d\n", map.max_players);
+    printf("Rows:    %"SCNu8"\n", map.rows);
+    printf("Cols:    %"SCNu8"\n", map.colums);
+    printf("Frags:   %"SCNu8"\n", map.frag_limit);
+    printf("Players: %"SCNu8"\n", map.max_players);
     for (int i=0; i < map.max_players; i++){
-        printf("\tPlayer %d: %d %d\n", i+1, map.starting_positions[i][0], map.starting_positions[i][1]);
+        printf("\tPlayer %"SCNu8": %"SCNu8" %"SCNu8"\n", i+1, map.starting_positions[i][0], map.starting_positions[i][1]);
     }
     printf("Blocks %d\n", map.number_of_blocks);
     for (int i=0; i < map.number_of_blocks; i++){
-        printf("\tBlock %d: %d %d\n", i+1, map.block_positions[i][0], map.block_positions[i][1]);
+        printf("\tBlock %"SCNu8": %"SCNu8" %"SCNu8"\n", i+1, map.block_positions[i][0], map.block_positions[i][1]);
     }
 }

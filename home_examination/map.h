@@ -3,26 +3,28 @@
 
 #include "system_headers.h"
 #include "md5.h"
+#include <inttypes.h>
 
 #define SERVER_MAP_FOLDER "serverdata"
 #define CLIENT_MAP_FOLDER "clientdata"
 #define MAP_FILE_EXTENSION ".map"
 #define MAX_MSG_SIZE 1024
-
+#define BLOCKSMAX 100
+#define BLOCKSIZE 2
+#define MAXPLAYERS 6
 typedef struct map_s map_t;
 struct map_s{
     char hash[33];
     char map_id[9];
-    int rows;
-    int colums;
-    int frag_limit;
-    int max_players;
-    int number_of_blocks;
-    int **starting_positions; /* starting_positions[max_players][2] */
-    int **block_positions; /* starting_positions[number_of_blocks][2] */
+    uint8_t rows;
+    uint8_t colums;
+    uint8_t frag_limit;
+    uint8_t max_players;
+    uint8_t number_of_blocks;
+    uint8_t starting_positions[MAXPLAYERS][BLOCKSIZE];
+    uint8_t block_positions[BLOCKSMAX][BLOCKSIZE];
 };
 
-void free_map(map_t *map);
 int read_map(char *path, map_t *map);
 int recv_map(int socket, char *map_id);
 int send_map(int socket, char *map_id);

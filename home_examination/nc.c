@@ -145,7 +145,9 @@ void ui_draw_grid(gamearea* game, player* pl) {
 	printw("\n%s\n",line);
 	printw("\nCHAT\n");
 	for(int row = 0; row < LOGSIZE; row++) {
-	  if(strlen(&chatlog[row][0]) > 0) printw("\t%d: %s\n",row+logentries,&chatlog[row][0]);
+	  if(strlen(&chatlog[row][0]) > 0){
+      printw("\t%d: %s\n",row+logentries,&chatlog[row][0]);
+    }
 	}
 	refresh();
 }
@@ -217,13 +219,17 @@ int main() {
 
   int readc = 0, quit = 0, playerid = PLAYER1;
   int textpos = 0;
+  int health;
 
   // Game area
   gamearea* game = new_gamearea(WIDTH,HEIGHT,5,blocks);
 
   // Player
-  player* pl1 = new_player(playerid,startx,starty,HEALTH);
-  player* pl2 = new_player(2,0,0,HEALTH);
+  player *players[6];
+  for (int i = 0; i < 6; i++){
+    players[i] = NULL;
+  }
+  player *pl1 = new_player(playerid,startx,starty,HEALTH);
 
   initscr(); // Start ncurses
   noecho(); // Disable echoing of terminal input
@@ -244,24 +250,28 @@ int main() {
   // Prepare everything
   clear_log();
   prepare_horizontal_line(WIDTH);
+
   ui_draw_grid(game, pl1);
-  ui_draw_grid(game, pl2);
 
   fd_set readfs;
   int rval = 0;
+  struct sockaddr_storage server_sockaddr;
+  socklen_t server_addrlen;
+  int game_descriptor = prepare_client_UDP("::1", "27015", (struct sockaddr *)&server_sockaddr, &server_addrlen);
+  int chat_server_descriptor = -1;
 
+
+  int max_fd = fileno(stdin) > game_descriptor ? fileno(stdin) : game_descriptor;
   while(1) {
     FD_ZERO(&readfs);
-    FD_SET(fileno(stdin),&readfs);
-
+    FD_SET(fileno(stdin), &readfs);
+    FD_SET(game_descriptor, &readfs);
     // Block until we have something
-    if((rval = select(fileno(stdin)+1,&readfs,NULL,NULL,NULL)) > 0) {
-
+    if((rval = select(max_fd + 1,&readfs, NULL, NULL, NULL)) > 0) {
       // From user
       if(FD_ISSET(fileno(stdin),&readfs)) {
         readc = getch(); // Get each keypress
         pl1->hitwall = 0;
-
         switch(readc) {
           case KEY_LEFT:
             if(is_position_a_wall(game,pl1->posx-1,pl1->posy)) pl1->hitwall = 1;
@@ -282,6 +292,11 @@ int main() {
           // Function keys, here F1 is reacted to
           case KEY_F(1):
             status = status ^ 1;
+            if (status){
+              send_connect(game_descriptor,(struct sockaddr *)&server_sockaddr, server_addrlen);
+            }else{
+              //send_disconnect
+            }
             break;
           case 27: // Escape key
             quit = 1;
@@ -318,8 +333,59 @@ int main() {
             }
             break;
           }
+      }
+
+      if(FD_ISSET(game_descriptor, &readfs)) {
+        struct sockaddr_storage sender_address;
+        socklen_t sender_address_size = sizeof(struct sockaddr_storage);
+        memset(&sender_address, 0, sizeof(struct sockaddr_storage));
+        uint8_t recvbuffer[1024];
+        memset(recvbuffer, 0, 1024);
+        if(recvfrom(game_descriptor, &recvbuffer, 1024, 0, (struct sockaddr*)&sender_address, &sender_address_size) < 0){
+          perror("recvfrom");
+        }else if(recvbuffer[0] == GAME_INFO){
+          playerid = recvbuffer[1];
+          health   = recvbuffer[2];
+          char path[255];
+          sprintf(path, "clientdata/%.*s.map", 8, &recvbuffer[3]);
+          int correct_map = 0;
+          //test if the map is correct
+          do {
+            char hash[33];
+            if(md5_from_file(path, hash) == 0){//return 0 if the file exists
+              if(memcmp(hash, &recvbuffer[11], 32) == 0){//test the map contents
+                correct_map = 1;
+              }
+            }
+            fprintf(stderr, "%s\n", path);
+            fprintf(stderr, "%.*s\n", 32, hash);
+            fprintf(stderr, "%.*s\n", 32, &recvbuffer[11]);
+            if(!correct_map){
+              //download the map if the map is not found or the hash is wrong
+              fprintf(stderr, "DOWNLOADING\n");
+              int descriptor = prepare_connection_TCP("::1", "27017");
+              if (descriptor > 0){
+                char id[9];
+                recv_map(descriptor, id);
+                close(descriptor);
+              }
+            }
+          }while(!correct_map);
+          fprintf(stderr, "ACABADO\n");
+          map_t map;
+          read_map(path, &map);
+          game = new_gamearea(map.rows, map.colums, map.number_of_blocks, map.block_positions);
+          for (int i = 0; i < map.number_of_blocks; i++){
+            fprintf(stderr, "%"SCNu8" %"SCNu8"\n", ((uint8_t(*)[2])map.block_positions)[i][0], ((uint8_t(*)[2])map.block_positions)[i][1]);
+          }
+          send_ready(game_descriptor, (struct sockaddr*)&sender_address, sender_address_size);
+        }else if(recvbuffer[0] == SPAWN){
+          fprintf(stderr, "%d %d\n", recvbuffer[1], recvbuffer[2]);
+          players[playerid - 1] = new_player(playerid, recvbuffer[1], recvbuffer[2], health);
         }
       }
+    }
+
 
     // Hit a wall, change player
     if(pl1->hitwall) {
@@ -327,9 +393,13 @@ int main() {
       if(pl1->id == PLAYER4) pl1->id = PLAYER1;
       else pl1->id++;
     }
-
-    // Update screen
     ui_draw_grid(game, pl1);
+    // Update screen
+    for (int i = 0; i < 6; i++){
+      if (players[i] != NULL){
+        ui_draw_grid(game, players[i]);
+      }
+    }
 
     // Suicide
     if(pl1->health == 0) {

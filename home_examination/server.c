@@ -4,15 +4,17 @@ linked_list_t *player_list = NULL;
 
 extern char *current_map_id;
 extern linked_list_t *mapcycle_list;
+
 int main(int argc, char **argv)
 {
     if (argc > 1){
 
         player_list = malloc(sizeof(linked_list_t));
         list_init(player_list);
-        int game_server_socket = prepare_server_UDP("27015", AF_INET);
-        int chat_server_socket = prepare_server_TCP("27016", AF_INET);
-        int map_server_socket  = prepare_server_TCP("27017", AF_INET);
+        int game_server_socket = prepare_server_UDP("27015", AF_INET6);
+        int chat_server_socket = prepare_server_TCP("27016", AF_INET6);
+        int map_server_socket  = prepare_server_TCP("27017", AF_INET6);
+
         game_server_init();
 
         fd_set descriptors_set;
@@ -91,6 +93,13 @@ int main(int argc, char **argv)
         FD_ZERO(&descriptors_set);
         FD_SET(game_descriptor,  &descriptors_set);
         int running = 1;
+        map_t map;
+        memset(&map, 0, sizeof(map_t));
+        char path[255];
+        sprintf(path, "clientdata/00404450.map");
+        read_map(path, &map);
+        print_map(map);
+        exit(1);
         while(running){
             printf("[WAITING]\n");
             if(select(game_descriptor  + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
@@ -101,11 +110,13 @@ int main(int argc, char **argv)
             if (FD_ISSET(game_descriptor , &descriptors_set)){
                 int bytes_recv = recvfrom(game_descriptor, buffer, 255, 0, &server_sockaddr, &server_addrlen);
                 if(buffer[0] == GAME_INFO){
-                    chat_server_descriptor = prepare_connection_TCP("127.0.0.1", "27016");
+                    chat_server_descriptor = prepare_connection_TCP("::1", "27016");
+                    //test map
+                    send_ready(game_descriptor, &server_sockaddr, server_addrlen);
                 }
             }
 
-                        FD_ZERO(&descriptors_set);
+            FD_ZERO(&descriptors_set);
             FD_SET(game_descriptor,  &descriptors_set);
         }
         send_ready(game_descriptor, &server_sockaddr, server_addrlen);
@@ -114,7 +125,7 @@ int main(int argc, char **argv)
         printf("%d\n", a);
         a = recvfrom(game_descriptor, buffer, 255, 0, &server_sockaddr, &server_addrlen);
         printf("%d\n", a);
-        sleep(25);
+        //sleep(25);
         send_ready(game_descriptor, &server_sockaddr, server_addrlen);
         // int descriptor = prepare_connection_TCP("127.0.0.1", "27017");
         // if (descriptor > 0){
@@ -131,7 +142,6 @@ int main(int argc, char **argv)
         // }
     }
 }
-
 
 void remove_idle_players()
 {

@@ -121,7 +121,7 @@ char* md5(char * initial_msg, size_t initial_len)
 }
 
 
-void md5_from_file(char *filepath, char hash[33])
+int md5_from_file(char *filepath, char hash[33])
 {
     char *output = NULL;
 
@@ -149,7 +149,9 @@ void md5_from_file(char *filepath, char hash[33])
         free(output);
         free(file_content);
         fclose(fd);
+        return 0;
     }
+    return -1;
 }
 /*
 int main(int argc, char **argv)

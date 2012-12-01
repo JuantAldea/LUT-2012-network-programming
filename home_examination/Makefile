@@ -8,22 +8,22 @@
 
 
 CC := gcc
-CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -pipe
-TARGET := server
-OBJ := linked_list.o map.c md5.c tcp.c map_server.c udp.c game_server.c chat_server.c
+CFLAGS := -W -Wall -Wextra -pedantic -std=gnu99 -g -pipe -lncurses
+TARGET1 := server
+TARGET2 := client
+OBJ := linked_list.o map.o md5.o tcp.o map_server.o udp.o game_server.o chat_server.o game_protocol.o
 
 build: all
 
-all: $(TARGET)
-	gcc -Wall -g -pedantic -std=gnu99 -lncurses nc.c -o game
+all: $(TARGET1) $(TARGET2)
 
-$(TARGET): $(OBJ) server.c
-	$(CC) $(CFLAGS) -o $(TARGET) server.c $(OBJ)
+$(TARGET1): $(OBJ) server.c
+	$(CC) $(CFLAGS) -o $(TARGET1) server.c $(OBJ)
+$(TARGET2): $(OBJ) nc.c
+	$(CC) $(CFLAGS) -o $(TARGET2) nc.c udp.o tcp.o map.o md5.o game_protocol.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c -o $*.o
 
 clean:
-	rm -f *.o $(TARGET)
-	rm -f game
-
+	rm -f *.o $(TARGET1) $(TARGET2)
