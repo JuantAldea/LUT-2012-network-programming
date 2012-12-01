@@ -266,6 +266,9 @@ int main() {
     FD_ZERO(&readfs);
     FD_SET(fileno(stdin), &readfs);
     FD_SET(game_descriptor, &readfs);
+    if (chat_server_descriptor != -1){
+      FD_SET(chat_server_descriptor, &readfs);
+    }
     // Block until we have something
     if((rval = select(max_fd + 1,&readfs, NULL, NULL, NULL)) > 0) {
       // From user
@@ -371,7 +374,6 @@ int main() {
               }
             }
           }while(!correct_map);
-          fprintf(stderr, "ACABADO\n");
           map_t map;
           read_map(path, &map);
           game = new_gamearea(map.rows, map.colums, map.number_of_blocks, map.block_positions);
@@ -379,6 +381,8 @@ int main() {
             fprintf(stderr, "%"SCNu8" %"SCNu8"\n", ((uint8_t(*)[2])map.block_positions)[i][0], ((uint8_t(*)[2])map.block_positions)[i][1]);
           }
           send_ready(game_descriptor, (struct sockaddr*)&sender_address, sender_address_size);
+          chat_server_descriptor = prepare_connection_TCP("::1", "27016");
+
         }else if(recvbuffer[0] == SPAWN){
           fprintf(stderr, "%d %d\n", recvbuffer[1], recvbuffer[2]);
           players[playerid - 1] = new_player(playerid, recvbuffer[1], recvbuffer[2], health);

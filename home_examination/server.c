@@ -50,7 +50,7 @@ int main(int argc, char **argv)
             for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
                 player_info_t *player_info = (player_info_t*)i->data;
                 if (FD_ISSET(player_info->chat_descriptor , &descriptors_set)){
-                    //CHAT
+                    //chat_forward_messaga();
                 }
             }
 
