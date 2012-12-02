@@ -116,7 +116,9 @@ void remove_idle_players(int game_server_socket)
     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
         player_info_t *player_info = (player_info_t*)i->data;
         if (now.tv_sec - player_info->last_action.tv_sec > 20){
-            printf("Removing player\n");
+            char buffer[128];
+            sprintf(buffer, "Player %"SCNu8" kicked due to inactivity", player_info->playerID);
+            chat_forward_msg(0, buffer, player_list);
             broadcast_disconnection_ack(game_server_socket, player_info->playerID, player_list);
             node_t *previous = i->previous;
             if (player_info->chat_descriptor > 0){

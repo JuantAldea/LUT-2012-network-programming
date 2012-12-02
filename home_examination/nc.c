@@ -416,16 +416,15 @@ int main() {
           free_gamearea(game);
           game = new_gamearea(map.rows, map.colums, map.number_of_blocks, map.block_positions);
           send_ready(game_descriptor, (struct sockaddr*)&sender_address, sender_address_size);
-          chat_server_descriptor = prepare_connection_TCP("::1", "27016");
+          if (chat_server_descriptor == -1){
+            chat_server_descriptor = prepare_connection_TCP("::1", "27016");
+          }
           status = 1;
         }else if(recvbuffer[0] == SPAWN){
-          char buffer[255];
-          sprintf(buffer, "SPAWN %d %d %d\n", recvbuffer[1], recvbuffer[2], recvbuffer[3]);
-          add_log(buffer, strnlen(buffer, 128));
           if (players[recvbuffer[1] - 1] == NULL){
             players[recvbuffer[1] - 1] = new_player(recvbuffer[1], recvbuffer[2], recvbuffer[3], health);
           }else{
-            players[recvbuffer[1] - 1]->health = 10;
+            players[recvbuffer[1] - 1]->health = health;
             players[recvbuffer[1] - 1]->posx = recvbuffer[2];
             players[recvbuffer[1] - 1]->posy = recvbuffer[3];
           }

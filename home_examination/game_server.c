@@ -146,10 +146,14 @@ void game_server(int socket)
         gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
     }
 
-    //check end of round
-    if(((player_info_t*)player_node->data)->frags >= current_map->frag_limit){
-        printf("[GAME SERVER] Frag limit reached\n");
-    }
+    // //check end of round
+    // if(((player_info_t*)player_node->data)->frags >= current_map->frag_limit){
+    //     printf("[GAME SERVER] Frag limit reached\n");
+    //     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
+    //         player_info_t *player = (player_info_t *)i->data;
+    //         send_game_info(socket, current_map, player);
+    //     }
+    // }
 }
 
 
