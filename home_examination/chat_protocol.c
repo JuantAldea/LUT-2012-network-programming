@@ -37,7 +37,6 @@ int chat_recv(int socket, char msg[131], int *fullmsg)
                 return recv_bytes;
             }
             *fullmsg = 1;
-            printf("COSA %d %s\n", (uint8_t)msg[1], msg);
             return (uint8_t)msg[1] - 2;
         }
     }else if (bytes_available == 0){

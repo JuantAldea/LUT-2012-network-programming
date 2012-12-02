@@ -43,4 +43,8 @@ void send_positions_refresh(int socket, player_info_t *player_to_refresh, linked
 void broadcast_disconnection_ack(int socket, uint8_t playerid, linked_list_t *players);
 void broadcast_death_ack(int socket, uint8_t playerid, linked_list_t *players);
 void broadcast_spawn(int socket, player_info_t *player_updated, linked_list_t *player);
+
+int send_ping(int socket, struct sockaddr *addr, socklen_t address_len);
+int send_pong(int socket, uint8_t ping_id, player_info_t *player);
+
 #endif

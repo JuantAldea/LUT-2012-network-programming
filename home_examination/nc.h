@@ -91,3 +91,4 @@ void clear_log();
 
 void sighandler(int);
 
+double time_diff(struct timeval *after, struct timeval *before);

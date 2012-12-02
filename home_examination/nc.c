@@ -16,7 +16,7 @@ uint8_t deaths = 0;
 uint8_t frags = 0;
 // Horizontal line for grid
 char* line = NULL;
-
+double latency = 0;
 gamearea* new_gamearea(int width, int height, int blockcount, uint8_t blocks[][BLOCKSIZE]) {
   // Allocate game struct
   gamearea *game = (gamearea*)malloc(sizeof(gamearea));
@@ -93,7 +93,7 @@ void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
     attron(COLOR_PAIR(pl->id));
     printw("%d",pl->id);
     attroff(COLOR_PAIR(pl->id));
-    printw(" at x = %d, y = %d | Score: %d/%d\n", pl->posx, pl->posy, frags, deaths);
+    printw(" at x = %d, y = %d | Score: %d/%d | Latency: %fms\n", pl->posx, pl->posy, frags, deaths, latency);
     attron(COLOR_PAIR(pl->id));
     printw("LIFE[%d]",pl->health);
     attroff(COLOR_PAIR(pl->id));
@@ -233,7 +233,7 @@ int main() {
   int readc = 0, quit = 0, playerid = PLAYER1;
   int textpos = 0;
   int health;
-
+  int ping_id;
   // Game area
   gamearea* game = new_gamearea(WIDTH, HEIGHT, 0, NULL);
 
@@ -275,6 +275,11 @@ int main() {
   socklen_t server_addrlen;
   int game_descriptor = prepare_client_UDP("::1", "27015", (struct sockaddr *)&server_sockaddr, &server_addrlen);
   int chat_server_descriptor = -1;
+  struct timeval timeout;
+  timeout.tv_sec = 1;
+  timeout.tv_usec = 0;
+  struct timeval ping_time;
+  int number_of_lost_pings = 0;
   while(1) {
     FD_ZERO(&readfs);
     FD_SET(fileno(stdin), &readfs);
@@ -285,7 +290,7 @@ int main() {
     int max_fd = fileno(stdin) > game_descriptor ? fileno(stdin) : game_descriptor;
     max_fd = max_fd > chat_server_descriptor ? max_fd : chat_server_descriptor;
     // Block until we have something
-    if((rval = select(max_fd + 1,&readfs, NULL, NULL, NULL)) > 0) {
+    if((rval = select(max_fd + 1,&readfs, NULL, NULL, &timeout)) > 0) {
       // From user
       if(FD_ISSET(fileno(stdin),&readfs)) {
         readc = getch(); // Get each keypress
@@ -456,6 +461,15 @@ int main() {
           players[recvbuffer[1] - 1]->health = 0;
         }else if (recvbuffer[0] == HIT_ACK){
           players[playerid - 1]->health--;
+        }else if(recvbuffer[0] == PONG){
+          if (ping_id == recvbuffer[1]){
+            number_of_lost_pings = 0;
+            struct timeval now;
+            gettimeofday(&now, NULL);
+            struct timeval result;
+            timersub(&now, &ping_time, &result);
+            latency = time_diff(&now, &ping_time);
+          }
         }
       }
 
@@ -486,29 +500,26 @@ int main() {
       }
 
     }
-
-/*
-    // Hit a wall, change player
-    if(pl1->hitwall) {
-      pl1->health--;
-      if(pl1->id == PLAYER4) pl1->id = PLAYER1;
-      else pl1->id++;
+    if(status && number_of_lost_pings > 2){
+      status = 0;
+      close(chat_server_descriptor);
+      for (int i = 0; i < 6; i++){
+        free_player(players[i]);
+        players[i] = NULL;
+      }
+      chat_server_descriptor = -1;
     }
-*/
-    //ui_draw_grid(game, pl1);
+
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    double ms = time_diff(&now, &ping_time);
+    if (status && ms > 1000){
+      ping_id = send_ping(game_descriptor, (struct sockaddr *)&server_sockaddr, server_addrlen);
+      gettimeofday(&ping_time, NULL);
+      number_of_lost_pings++;
+    }
     // Update screen
     ui_draw_grid(game, playerid, players);
-    // for (int i = 0; i < 6; i++){
-    //   ui_draw_grid(game, players[i]);
-    // }
-
-    // Suicide
-    /*
-    if(pl1->health == 0) {
-      ui_draw_end(1);
-      break;
-    }
-    */
 
     // Surrended
     if(quit) {
@@ -527,3 +538,8 @@ int main() {
   return 0;
 }
 
+double time_diff(struct timeval *after, struct timeval *before)
+{
+    long int delta = after->tv_usec + 1000000 * after->tv_sec - (before->tv_usec + 1000000 * before->tv_sec);
+    return delta / (double)1000;
+}

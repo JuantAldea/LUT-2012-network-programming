@@ -154,3 +154,22 @@ void broadcast_spawn(int socket, player_info_t *updated_player, linked_list_t *p
         send_spawn(socket, updated_player, player_to_update);
     }
 }
+
+int send_ping(int socket, struct sockaddr *addr, socklen_t address_len)
+{
+    uint8_t buffer[2];
+    buffer[0] = PING;
+    buffer[1] = rand() % 256;
+    int bytes = sendto(socket, &buffer, 2, 0, addr, address_len);
+    return bytes <= 0 ? bytes : buffer[1];
+}
+
+int send_pong(int socket, uint8_t ping_id, player_info_t *player)
+{
+    uint8_t buffer[2];
+    buffer[0] = PONG;
+    buffer[1] = ping_id;
+    return sendto(socket, &buffer, 2, 0, (struct sockaddr*)&player->addr, player->addr_len);
+}
+
+

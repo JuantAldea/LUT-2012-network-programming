@@ -1,5 +1,5 @@
 #include "game_server.h"
-
+#include <time.h>
 extern linked_list_t *player_list;
 linked_list_t *mapcycle_list = NULL;
 map_t *current_map = NULL;
@@ -138,11 +138,17 @@ void game_server(int socket)
                     }
                 }
             }
+        }else if(recvbuffer[0] == PING){
+            // struct timespec t1, t2;
+            // t1.tv_sec = 0;
+            // t1.tv_nsec = 500000000;
+            // nanosleep(&t1 , &t2);
+            send_pong(socket, recvbuffer[1], ((player_info_t*)player_node->data));
         }
     }
 
     //update the idle time
-    if (player_node != NULL){
+    if (player_node != NULL && recvbuffer[0] != PING){
         gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
     }
 
