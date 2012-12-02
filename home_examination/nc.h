@@ -1,6 +1,13 @@
+#include <curses.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <signal.h>
 #include <stdint.h>
 #include "system_headers.h"
 #include "game_protocol.h"
+#include "chat_protocol.h"
 #include "udp.h"
 #include "tcp.h"
 // Predefined widht and height - only for demonstration
@@ -65,7 +72,8 @@ void free_player(player* p);
 int is_position_a_wall(gamearea*, int, int);
 
 // Draw the grid
-void ui_draw_grid(gamearea*, player*);
+//void ui_draw_grid(gamearea*, player*);
+void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[]);
 
 // Draw ending, death = 1, player died, 0 = quit
 void ui_draw_end(int death);

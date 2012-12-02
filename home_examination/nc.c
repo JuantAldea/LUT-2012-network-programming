@@ -1,9 +1,4 @@
-#include <curses.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <signal.h>
+
 #include "nc.h"
 
 // Textinput from ui
@@ -62,94 +57,116 @@ void free_player(player* p) {
   if(p) free(p);
 }
 
-int is_position_a_wall(gamearea *game, int posx, int posy) {
+int is_position_a_wall(gamearea *game, int posx, int posy)
+{
+  for(int i = 0; i < game->blockcount; i++){
+    if(game->blocks[i][0] == posx && game->blocks[i][1] == posy){
+      return 1;
+    }
+  }
+  // Right wall
+  if(posx >= game->width) return 1;
+  // Left wall
+  if(posx < 0) return 1;
+  // Bottom wall
+  if(posy >= game->height) return 1;
+  // Top wall
+  if(posy < 0) return 1;
 
-	for(int i = 0; i < game->blockcount; i++) if(game->blocks[i][0] == posx && game->blocks[i][1] == posy) return 1;
-	// Right wall
-	if(posx >= game->width) return 1;
-	// Left wall
-	if(posx < 0) return 1;
-	// Bottom wall
-	if(posy >= game->height) return 1;
-	// Top wall
-	if(posy < 0) return 1;
-
-	return 0;
+  return 0;
 }
 
 
 
-void ui_draw_grid(gamearea* game, player* pl) {
-	int x = 0, y = 0, index = 0, was_wall = 0;
-	char pchar = ' ';
+void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
+{
+  int x = 0, y = 0, index = 0, was_wall = 0;
+  char pchar = ' ';
+  player *pl = players[playerid - 1];
+  clear(); // clear screen
+  if (pl != NULL){
+    if(pl->hitwall) pl->hitrepeat++;
+    else pl->hitrepeat = 0;
+    printw("Player ");
+    attron(COLOR_PAIR(pl->id));
+    printw("%d",pl->id);
+    attroff(COLOR_PAIR(pl->id));
+    printw(" at x = %d, y = %d\n",pl->posx,pl->posy);
+    attron(COLOR_PAIR(pl->id));
+    printw("LIFE[%d]",pl->health);
+    attroff(COLOR_PAIR(pl->id));
+    printw("\n%s\n", pl->hitwall ? "OUCH! HIT A WALL (LOST 1 HEALTH)" : "TRAVELLING...");
+  }else{
+    printw("Player X");
+    printw(" at x = X, y = X\n");
+    printw("LIFE[X]");
+  }
+  printw("Game status: %s\n",status == 0 ? "not ready" : "ready" );
+  printw("Connection status: %s\n",status == 0 ? "disconnected" : "connected" );
+  printw("%s\n",line);
 
-	clear(); // clear screen
+  // Draw grid
+  for(index = 0; index < game->width * game->height; index++,x++) {
+    // Start a new line?
+    if(index % game->width == 0) {
+      x = 0; // reset the x coordinate
+      // The first index is always 0, skip it
+      if(index > 0) {
+        printw("|\n%s\n",line);
+        y++;
+      }
+    }
+    printw("|");
+    pchar = ' '; //empty mark
+    // The player
+    for (int i = 0; i < 6; i++){
+      if (players[i] != NULL && players[i]->posx == x && players[i]->posy == y && players[i]->health > 0){
+        if(players[i]->hitwall){
+          attron(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
+        }else{
+          attron(COLOR_PAIR(players[i]->id)); // Normal color
+        }
+        pchar = 'o'; // Player mark
+      }
+    }
+    // if(pl != NULL && x == pl->posx && y == pl->posy) {
+    //   if(pl->hitwall) attron(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
+    //   else attron(COLOR_PAIR(pl->id)); // Normal color
+    //   pchar = 'o'; // Player mark
+    // }else{
+    //   pchar = ' '; // Otherwise empty mark
+    // }
 
-	if(pl->hitwall) pl->hitrepeat++;
-	else pl->hitrepeat = 0;
+    // Is it a wall
+    if(is_position_a_wall(game,x,y) == 1) {
+      attron(COLOR_PAIR(WALL_COLOR)); // Paint it white
+      was_wall = 1;
+    }
 
-	printw("Player ");
-	attron(COLOR_PAIR(pl->id));
-	printw("%d",pl->id);
-	attroff(COLOR_PAIR(pl->id));
-	printw(" at x = %d, y = %d\n",pl->posx,pl->posy);
-	attron(COLOR_PAIR(pl->id));
-	printw("LIFE[%d]",pl->health);
-	attroff(COLOR_PAIR(pl->id));
-	printw("\n%s\n", pl->hitwall ? "OUCH! HIT A WALL (LOST 1 HEALTH)" : "TRAVELLING...");
-	printw("Game status: %s\n",status == 0 ? "not ready" : "ready" );
-	printw("Connection status: %s\n",status == 0 ? "disconnected" : "connected" );
-	printw("%s\n",line);
+    // Put the mark on the grid
+    printw(" %c ",pchar);
 
-	// Draw grid
-	for(index = 0; index < game->width * game->height; index++,x++) {
-		// Start a new line?
-		if(index % game->width == 0) {
-			x = 0; // reset the x coordinate
-			// The first index is always 0, skip it
-			if(index > 0) {
-				printw("|\n%s\n",line);
-				y++;
-			}
-		}
-		printw("|");
+    // If player hit a wall disable the color
+    if (pl != NULL){
+      if(pl->hitwall) attroff(COLOR_PAIR(PLAYER_HIT_COLOR));
+      else attroff(COLOR_PAIR(pl->id));
+    }
 
-		// The player
-		if(x == pl->posx && y == pl->posy) {
-			if(pl->hitwall) attron(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
-			else attron(COLOR_PAIR(pl->id)); // Normal color
-			pchar = 'o'; // Player mark
-		}
-		else pchar = ' '; // Otherwise empty mark
-
-		// Is it a wall
-		if(is_position_a_wall(game,x,y) == 1) {
-		  attron(COLOR_PAIR(WALL_COLOR)); // Paint it white
-		  was_wall = 1;
-		}
-
-		// Put the mark on the grid
-		printw(" %c ",pchar);
-
-		// If player hit a wall disable the color
-		if(pl->hitwall) attroff(COLOR_PAIR(PLAYER_HIT_COLOR));
-		else attroff(COLOR_PAIR(pl->id));
-
-		// Wall painted, disable the color
-		if(was_wall == 1) attroff(COLOR_PAIR(WALL_COLOR));
-		was_wall = 0;
-	}
-	printw("|\n%s\n",line);
-	if(pl->hitrepeat > 1) printw("STOP HITTING THE WALL YOU'LL KILL YOURSELF");
-	if(textinput==1) printw("\tTYPING: %s",textbuffer);
-	printw("\n%s\n",line);
-	printw("\nCHAT\n");
-	for(int row = 0; row < LOGSIZE; row++) {
-	  if(strlen(&chatlog[row][0]) > 0){
+    // Wall painted, disable the color
+    if(was_wall == 1) attroff(COLOR_PAIR(WALL_COLOR));
+    was_wall = 0;
+  }
+  printw("|\n%s\n",line);
+  if(pl != NULL && pl->hitrepeat > 1) printw("STOP HITTING THE WALL YOU'LL KILL YOURSELF");
+  if(textinput==1) printw("\tTYPING: %s",textbuffer);
+  printw("\n%s\n",line);
+  printw("\nCHAT\n");
+  for(int row = 0; row < LOGSIZE; row++) {
+    if(strlen(&chatlog[row][0]) > 0){
       printw("\t%d: %s\n",row+logentries,&chatlog[row][0]);
     }
-	}
-	refresh();
+  }
+  refresh();
 }
 
 void ui_draw_end(int death) {
@@ -177,7 +194,8 @@ void ui_draw_end(int death) {
 }
 
 void prepare_horizontal_line(int width) {
-  line = (char*)malloc(sizeof(char)*(width*4+1));
+  line = (char*)malloc(sizeof(char)*(width*4+2));
+  memset(line, 0, width*4+2);
   memset(line,'-',width*4+1);
 }
 
@@ -187,7 +205,7 @@ void free_horizontal_line() {
 
 void clear_log() {
   for(int i = 0; i < LOGSIZE; i++) {
-  memset(&chatlog[i][0],0,BUFFER);
+    memset(&chatlog[i][0],0,BUFFER);
   }
 }
 
@@ -251,7 +269,7 @@ int main() {
   clear_log();
   prepare_horizontal_line(WIDTH);
 
-  ui_draw_grid(game, pl1);
+  ui_draw_grid(game, playerid, players);
 
   fd_set readfs;
   int rval = 0;
@@ -259,9 +277,6 @@ int main() {
   socklen_t server_addrlen;
   int game_descriptor = prepare_client_UDP("::1", "27015", (struct sockaddr *)&server_sockaddr, &server_addrlen);
   int chat_server_descriptor = -1;
-
-
-  int max_fd = fileno(stdin) > game_descriptor ? fileno(stdin) : game_descriptor;
   while(1) {
     FD_ZERO(&readfs);
     FD_SET(fileno(stdin), &readfs);
@@ -269,6 +284,8 @@ int main() {
     if (chat_server_descriptor != -1){
       FD_SET(chat_server_descriptor, &readfs);
     }
+    int max_fd = fileno(stdin) > game_descriptor ? fileno(stdin) : game_descriptor;
+    max_fd = max_fd > chat_server_descriptor ? max_fd : chat_server_descriptor;
     // Block until we have something
     if((rval = select(max_fd + 1,&readfs, NULL, NULL, NULL)) > 0) {
       // From user
@@ -277,28 +294,50 @@ int main() {
         pl1->hitwall = 0;
         switch(readc) {
           case KEY_LEFT:
-            if(is_position_a_wall(game,pl1->posx-1,pl1->posy)) pl1->hitwall = 1;
-            else pl1->posx--;
+          if(status){
+              send_move(game_descriptor, KEY_LEFT, (struct sockaddr *)&server_sockaddr, server_addrlen);
+            }
+            //if(is_position_a_wall(game,pl1->posx-1,pl1->posy)) pl1->hitwall = 1;
+            //else pl1->posx--;
             break;
           case KEY_RIGHT:
-            if(is_position_a_wall(game,pl1->posx+1,pl1->posy)) pl1->hitwall = 1;
-            else pl1->posx++;
+          if(status){
+              send_move(game_descriptor, KEY_RIGHT, (struct sockaddr *)&server_sockaddr, server_addrlen);
+            }
+            //if(is_position_a_wall(game,pl1->posx+1,pl1->posy)) pl1->hitwall = 1;
+            //else pl1->posx++;
             break;
           case KEY_UP:
-            if(is_position_a_wall(game,pl1->posx,pl1->posy-1)) pl1->hitwall = 1;
-            else pl1->posy--;
+            // if(is_position_a_wall(game,pl1->posx,pl1->posy-1)) pl1->hitwall = 1;
+            // else pl1->posy--;
+            if(status){
+              send_move(game_descriptor, KEY_UP, (struct sockaddr *)&server_sockaddr, server_addrlen);
+            }
             break;
           case KEY_DOWN:
-            if(is_position_a_wall(game,pl1->posx,pl1->posy+1)) pl1->hitwall = 1;
-            else pl1->posy++;
+            if(status){
+              send_move(game_descriptor, KEY_DOWN, (struct sockaddr *)&server_sockaddr, server_addrlen);
+            }
+            //if(is_position_a_wall(game,pl1->posx,pl1->posy+1)) pl1->hitwall = 1;
+            //else pl1->posy++;
+
             break;
           // Function keys, here F1 is reacted to
           case KEY_F(1):
-            status = status ^ 1;
-            if (status){
+            if (!status){
+              clear_log();
+              logposition = 0;
               send_connect(game_descriptor,(struct sockaddr *)&server_sockaddr, server_addrlen);
             }else{
-              //send_disconnect
+              if(chat_server_descriptor > 0){
+                close(chat_server_descriptor);
+                chat_server_descriptor = -1;
+                status = 0;
+                for (int i = 0; i < 6; i++){
+                  free_player(players[i]);
+                  players[i] = NULL;
+                }
+              }
             }
             break;
           case 27: // Escape key
@@ -320,9 +359,12 @@ int main() {
           case KEY_ENTER:
           case '\n':
             textinput = 0;
-            if(strlen(textbuffer) > 0) add_log(textbuffer,textpos);
+            if(strlen(textbuffer) > 0){
+              chat_send(chat_server_descriptor, 0, textbuffer);
+              //add_log(textbuffer,textpos);
+            }
             textpos = 0;
-            memset(&textbuffer,0,BUFFER);
+            memset(&textbuffer, 0, BUFFER);
             break;
           // Add the character to textbuffer if we were inputting text
           default:
@@ -360,9 +402,7 @@ int main() {
                 correct_map = 1;
               }
             }
-            fprintf(stderr, "%s\n", path);
-            fprintf(stderr, "%.*s\n", 32, hash);
-            fprintf(stderr, "%.*s\n", 32, &recvbuffer[11]);
+
             if(!correct_map){
               //download the map if the map is not found or the hash is wrong
               fprintf(stderr, "DOWNLOADING\n");
@@ -376,40 +416,79 @@ int main() {
           }while(!correct_map);
           map_t map;
           read_map(path, &map);
+          free_gamearea(game);
           game = new_gamearea(map.rows, map.colums, map.number_of_blocks, map.block_positions);
-          for (int i = 0; i < map.number_of_blocks; i++){
-            fprintf(stderr, "%"SCNu8" %"SCNu8"\n", ((uint8_t(*)[2])map.block_positions)[i][0], ((uint8_t(*)[2])map.block_positions)[i][1]);
-          }
           send_ready(game_descriptor, (struct sockaddr*)&sender_address, sender_address_size);
           chat_server_descriptor = prepare_connection_TCP("::1", "27016");
-
+          status = 1;
         }else if(recvbuffer[0] == SPAWN){
-          fprintf(stderr, "%d %d\n", recvbuffer[1], recvbuffer[2]);
           players[playerid - 1] = new_player(playerid, recvbuffer[1], recvbuffer[2], health);
+        }else if(recvbuffer[0] == MOVE_ACK){
+          //if a new client package is lost, use the move_ack to resync
+          if(players[recvbuffer[1] -1] == NULL){
+             players[recvbuffer[1] - 1] = new_player(recvbuffer[1], recvbuffer[2], recvbuffer[3], health);
+          }
+          players[recvbuffer[1] - 1]->posx = recvbuffer[2];
+          players[recvbuffer[1] - 1]->posy = recvbuffer[3];
+          players[playerid - 1]->hitwall = 0;
+        }else if(recvbuffer[0] == WALL_ACK){
+          players[playerid - 1]->health--;
+          players[playerid - 1]->hitwall = 1;
+        }else if(recvbuffer[0] == SUICIDE_ACK){
+          players[playerid - 1]->health--;
         }
       }
+
+      if(chat_server_descriptor != -1 && FD_ISSET(chat_server_descriptor, &readfs)) {
+        fprintf(stderr, "ACTIVIDAD\n");
+        char buffer[131];
+        memset(buffer, 0, 131);
+        int full_msg = 0;
+        int msg_len = chat_recv(chat_server_descriptor, buffer, &full_msg);
+        if (msg_len > 0){
+          char chat_string[255];
+          memset(chat_string, 0, 255);
+          if (buffer[0] != 0){
+            sprintf(chat_string, "Player %"SCNu8": %s", buffer[0], &buffer[2]);
+          }else{
+            sprintf(chat_string, "[SERVER]: %s", &buffer[2]);
+          }
+          add_log(chat_string, strnlen(chat_string, 255));
+        }else{
+          status = 0;
+          close(chat_server_descriptor);
+          for (int i = 0; i < 6; i++){
+            free_player(players[i]);
+            players[i] = NULL;
+          }
+          chat_server_descriptor = -1;
+        }
+      }
+
     }
 
-
+/*
     // Hit a wall, change player
     if(pl1->hitwall) {
       pl1->health--;
       if(pl1->id == PLAYER4) pl1->id = PLAYER1;
       else pl1->id++;
     }
-    ui_draw_grid(game, pl1);
+*/
+    //ui_draw_grid(game, pl1);
     // Update screen
-    for (int i = 0; i < 6; i++){
-      if (players[i] != NULL){
-        ui_draw_grid(game, players[i]);
-      }
-    }
+    ui_draw_grid(game, playerid, players);
+    // for (int i = 0; i < 6; i++){
+    //   ui_draw_grid(game, players[i]);
+    // }
 
     // Suicide
+    /*
     if(pl1->health == 0) {
       ui_draw_end(1);
       break;
     }
+    */
 
     // Surrended
     if(quit) {
@@ -417,8 +496,12 @@ int main() {
       break;
     }
   }
-  free_gamearea(game);
+  for (int i = 0; i < 6; i++){
+    free_player(players[i]);
+    players[i] = NULL;
+  }
   free_player(pl1);
+  free_gamearea(game);
   free_horizontal_line();
   sleep(1);
   endwin(); // End ncurses

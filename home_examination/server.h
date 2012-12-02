@@ -10,5 +10,5 @@
 #include "game_server.h"
 #include "chat_server.h"
 #include "game_protocol.h"
-
+#include "chat_protocol.h"
 #endif

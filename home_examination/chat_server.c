@@ -17,26 +17,14 @@ void chat_server(int socket)
 
     if (player_node != NULL){
         player_info_t *player = (player_info_t*)player_node->data;
-        player->chat_descriptor = connection_descriptor;
         printf("[CHAT SERVER] Player%d registered\n", player->playerID);
+        char msg[129];
+        sprintf(msg, "Player %d connected", player->playerID);
+        chat_forward_msg(0, msg, player_list);
+
+        player->chat_descriptor = connection_descriptor;
     }else{
         printf("[CHAT SERVER] Dropping unkown client\n");
         close(connection_descriptor);
-    }
-}
-
-void chat_forward_msg(uint8_t sender_id, char msg[128], linked_list_t *clients)
-{
-    char buffer[129];
-    buffer[0] = sender_id;
-    memcpy(buffer + 1, msg, 128);
-    for (node_t *i = clients->head->next; i != clients->tail; i = i->next){
-        player_info_t *player = (player_info_t *)i->data;
-        if (player->playerID != sender_id){
-            //TODO PARTIAL SENDS
-            if (send(player->chat_descriptor, msg, 129, 0) <= 0){
-                //print error
-            }
-        }
     }
 }

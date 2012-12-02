@@ -27,10 +27,12 @@ int main(int argc, char **argv)
 
         int max_fd = map_server_socket > chat_server_socket ? map_server_socket : chat_server_socket;
         max_fd = max_fd > game_server_socket ? max_fd : game_server_socket;
-
+        struct timeval timeout;
+        memset(&timeout, 0, sizeof(struct timeval));
+        timeout.tv_sec = 3;
         while(running){
-            printf("[WAITING]\n");
-            if(select(max_fd  + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
+            //printf("[WAITING]\n");
+            if(select(max_fd  + 1, &descriptors_set, NULL, NULL, &timeout) < 0) {
                 perror("Error in select");
                 exit(EXIT_FAILURE);
             }
@@ -50,11 +52,32 @@ int main(int argc, char **argv)
             for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
                 player_info_t *player_info = (player_info_t*)i->data;
                 if (FD_ISSET(player_info->chat_descriptor , &descriptors_set)){
-                    //chat_forward_messaga();
+                    char buffer[129];
+                    memset(buffer, 0, 129);
+                    int full_recv = 0;
+                    int bytes_recv = chat_recv(player_info->chat_descriptor, buffer, &full_recv);
+                    if(bytes_recv == 0){
+                        //HANDLE DISCONNECT
+                        char buffer[129];
+                        sprintf(buffer, "Player %"SCNu8" disconnected", player_info->playerID);
+                        printf("[CHAT SERVER] %s\n", buffer);
+                        close(player_info->chat_descriptor);
+                        node_t *previous = i->previous;
+                        list_remove_node(i, player_list);
+                        i = previous;
+                        chat_forward_msg(0, buffer, player_list);
+
+                    }else if (bytes_recv < 0){
+                        printf("[CHAT SERVER] Error receiving from %"SCNu8"%s\n", player_info->playerID, strerror(errno));
+                    }else if (full_recv){
+                        chat_forward_msg(player_info->playerID, &buffer[2], player_list);
+                        gettimeofday(&player_info->last_action, NULL);
+                    }
                 }
             }
 
             remove_idle_players();
+            respawn_death_players(game_server_socket);
 
             FD_ZERO(&descriptors_set);
             FD_SET(map_server_socket,  &descriptors_set);
@@ -82,64 +105,6 @@ int main(int argc, char **argv)
         close(map_server_socket);
         close(chat_server_socket);
         close(game_server_socket);
-    }else{
-        char buffer[255];
-        struct sockaddr server_sockaddr;
-        socklen_t server_addrlen;
-        int game_descriptor = prepare_client_UDP("::1", "27015", &server_sockaddr, &server_addrlen);
-        int chat_server_descriptor = -1;
-        send_connect(game_descriptor, &server_sockaddr, server_addrlen);
-        fd_set descriptors_set;
-        FD_ZERO(&descriptors_set);
-        FD_SET(game_descriptor,  &descriptors_set);
-        int running = 1;
-        map_t map;
-        memset(&map, 0, sizeof(map_t));
-        char path[255];
-        sprintf(path, "clientdata/00404450.map");
-        read_map(path, &map);
-        print_map(map);
-        exit(1);
-        while(running){
-            printf("[WAITING]\n");
-            if(select(game_descriptor  + 1, &descriptors_set, NULL, NULL, NULL) < 0) {
-                perror("Error in select");
-                exit(EXIT_FAILURE);
-            }
-
-            if (FD_ISSET(game_descriptor , &descriptors_set)){
-                int bytes_recv = recvfrom(game_descriptor, buffer, 255, 0, &server_sockaddr, &server_addrlen);
-                if(buffer[0] == GAME_INFO){
-                    chat_server_descriptor = prepare_connection_TCP("::1", "27016");
-                    //test map
-                    send_ready(game_descriptor, &server_sockaddr, server_addrlen);
-                }
-            }
-
-            FD_ZERO(&descriptors_set);
-            FD_SET(game_descriptor,  &descriptors_set);
-        }
-        send_ready(game_descriptor, &server_sockaddr, server_addrlen);
-
-        int a = recvfrom(game_descriptor, buffer, 255, 0, &server_sockaddr, &server_addrlen);
-        printf("%d\n", a);
-        a = recvfrom(game_descriptor, buffer, 255, 0, &server_sockaddr, &server_addrlen);
-        printf("%d\n", a);
-        //sleep(25);
-        send_ready(game_descriptor, &server_sockaddr, server_addrlen);
-        // int descriptor = prepare_connection_TCP("127.0.0.1", "27017");
-        // if (descriptor > 0){
-        //     char id[9];
-        //     recv_map(descriptor, id);
-        //     close(descriptor);
-        //     char path[255];
-        //     sprintf(path, "clientdata/%.*s.map", 8, id);
-        //     map_t map;
-        //     memset(&map, 0, sizeof(map_t));
-        //     read_map(path, &map);
-        //     print_map(map);
-        //     free_map(&map);
-        // }
     }
 }
 
@@ -152,6 +117,9 @@ void remove_idle_players()
         if (now.tv_sec - player_info->last_action.tv_sec > 20){
             printf("Removing player\n");
             node_t *previous = i->previous;
+            if (player_info->chat_descriptor > 0){
+                close(player_info->chat_descriptor);
+            }
             list_remove_node(i, player_list);
             i = previous;
         }

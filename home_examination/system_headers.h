@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
-
+#include <sys/ioctl.h>
 
 #define uchar unsigned char
 

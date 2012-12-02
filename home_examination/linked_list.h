@@ -43,6 +43,8 @@ struct player_info_s {
     int position[2];
     int frags;
     int deaths;
+    int death;
+    struct timeval death_time;
     struct timeval last_action;
     uint16_t last_udp_package;
 };
@@ -63,4 +65,6 @@ void list_reverse_print(linked_list_t *list);
 
 node_t *list_search_by_addrinfo(struct sockaddr_storage *addr, linked_list_t *list);
 node_t *list_search_by_addr(struct sockaddr_storage *addr, linked_list_t *list);
+node_t *list_search_by_playerID(uint8_t id, linked_list_t *list);
+
 #endif

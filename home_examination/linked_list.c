@@ -129,3 +129,14 @@ node_t *list_search_by_addr(struct sockaddr_storage *addr, linked_list_t *list)
     }
     return NULL;
 }
+
+node_t *list_search_by_playerID(uint8_t id, linked_list_t *list)
+{
+    for(node_t *i = list->tail->previous; i != list->head; i = i->previous){
+        player_info_t *info = (player_info_t *)i->data;
+        if (info->playerID == id){
+            return i;
+        }
+    }
+    return NULL;
+}
