@@ -21,8 +21,12 @@ void remove_idle_players();
 uint8_t get_first_free_id();
 
 int is_position_a_wall(map_t *map, int posx, int posy);
+int is_position_a_spawn_point(map_t *map, int posx, int posy);
 
 void respawn_death_players(int socket);
 void respawn_player(player_info_t *player_info);
+
+player_info_t *player_collision_test(player_info_t *attacker, uint8_t x, uint8_t y, linked_list_t *players);
+int damage_player(player_info_t *player);
 
 #endif

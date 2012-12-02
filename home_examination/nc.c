@@ -12,7 +12,8 @@ int logentries = 0;
 
 // Some status variables
 int status = 0;
-
+uint8_t deaths = 0;
+uint8_t frags = 0;
 // Horizontal line for grid
 char* line = NULL;
 
@@ -76,8 +77,6 @@ int is_position_a_wall(gamearea *game, int posx, int posy)
   return 0;
 }
 
-
-
 void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
 {
   int x = 0, y = 0, index = 0, was_wall = 0;
@@ -85,21 +84,24 @@ void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
   player *pl = players[playerid - 1];
   clear(); // clear screen
   if (pl != NULL){
-    if(pl->hitwall) pl->hitrepeat++;
-    else pl->hitrepeat = 0;
+    if(pl->hitwall){
+      pl->hitrepeat++;
+    }else{
+      pl->hitrepeat = 0;
+    }
     printw("Player ");
     attron(COLOR_PAIR(pl->id));
     printw("%d",pl->id);
     attroff(COLOR_PAIR(pl->id));
-    printw(" at x = %d, y = %d\n",pl->posx,pl->posy);
+    printw(" at x = %d, y = %d | Score: %d/%d\n", pl->posx, pl->posy, frags, deaths);
     attron(COLOR_PAIR(pl->id));
     printw("LIFE[%d]",pl->health);
     attroff(COLOR_PAIR(pl->id));
     printw("\n%s\n", pl->hitwall ? "OUCH! HIT A WALL (LOST 1 HEALTH)" : "TRAVELLING...");
   }else{
-    printw("Player X");
-    printw(" at x = X, y = X\n");
-    printw("LIFE[X]");
+    attron(COLOR_PAIR(COLOR_WHITE));
+    printw("\n\n\n");
+    attroff(COLOR_PAIR(COLOR_WHITE));
   }
   printw("Game status: %s\n",status == 0 ? "not ready" : "ready" );
   printw("Connection status: %s\n",status == 0 ? "disconnected" : "connected" );
@@ -228,26 +230,19 @@ void add_log(char* message, int msglen) {
 
 int main() {
 
-  // Initial blocks
-  uint8_t blocks[5][2] = { {2,1}, {3,5}, {4,5}, {4,6}, {5,5}};
-
-  // Initial start position
-  uint8_t startx = WIDTH / 2;
-  uint8_t starty = HEIGHT / 2;
-
   int readc = 0, quit = 0, playerid = PLAYER1;
   int textpos = 0;
   int health;
 
   // Game area
-  gamearea* game = new_gamearea(WIDTH,HEIGHT,5,blocks);
+  gamearea* game = new_gamearea(WIDTH, HEIGHT, 0, NULL);
 
-  // Player
+  //players
   player *players[6];
   for (int i = 0; i < 6; i++){
     players[i] = NULL;
   }
-  player *pl1 = new_player(playerid,startx,starty,HEALTH);
+
 
   initscr(); // Start ncurses
   noecho(); // Disable echoing of terminal input
@@ -262,6 +257,9 @@ int main() {
   init_pair(PLAYER2,PLAYER2,COLOR_BLACK); // Player2 = COLOR_GREEN (2)
   init_pair(PLAYER3,PLAYER3,COLOR_BLACK); // Player3 = COLOR_YELLOW (3)
   init_pair(PLAYER4,PLAYER4,COLOR_BLACK); // Player4 = COLOR_BLUE (4)
+  init_pair(PLAYER5,PLAYER5,COLOR_BLACK); // Player4 = COLOR_BLUE (4)
+  init_pair(PLAYER6,PLAYER6,COLOR_BLACK); // Player4 = COLOR_BLUE (4)
+
   init_pair(PLAYER_HIT_COLOR,COLOR_RED,COLOR_YELLOW);
   init_pair(WALL_COLOR,COLOR_WHITE,COLOR_WHITE);
 
@@ -291,7 +289,6 @@ int main() {
       // From user
       if(FD_ISSET(fileno(stdin),&readfs)) {
         readc = getch(); // Get each keypress
-        pl1->hitwall = 0;
         switch(readc) {
           case KEY_LEFT:
           if(status){
@@ -422,19 +419,43 @@ int main() {
           chat_server_descriptor = prepare_connection_TCP("::1", "27016");
           status = 1;
         }else if(recvbuffer[0] == SPAWN){
-          players[playerid - 1] = new_player(playerid, recvbuffer[1], recvbuffer[2], health);
+          char buffer[255];
+          sprintf(buffer, "SPAWN %d %d %d\n", recvbuffer[1], recvbuffer[2], recvbuffer[3]);
+          add_log(buffer, strnlen(buffer, 128));
+          if (players[recvbuffer[1] - 1] == NULL){
+            players[recvbuffer[1] - 1] = new_player(recvbuffer[1], recvbuffer[2], recvbuffer[3], health);
+          }else{
+            players[recvbuffer[1] - 1]->health = 10;
+            players[recvbuffer[1] - 1]->posx = recvbuffer[2];
+            players[recvbuffer[1] - 1]->posy = recvbuffer[3];
+          }
+        }else if(recvbuffer[0] == DISCONNECT_ACK){
+          free_player(players[recvbuffer[1] - 1]);
+          players[recvbuffer[1] - 1] = NULL;
         }else if(recvbuffer[0] == MOVE_ACK){
           //if a new client package is lost, use the move_ack to resync
-          if(players[recvbuffer[1] -1] == NULL){
+          if(players[recvbuffer[1] - 1] == NULL){
              players[recvbuffer[1] - 1] = new_player(recvbuffer[1], recvbuffer[2], recvbuffer[3], health);
           }
           players[recvbuffer[1] - 1]->posx = recvbuffer[2];
           players[recvbuffer[1] - 1]->posy = recvbuffer[3];
-          players[playerid - 1]->hitwall = 0;
+          players[recvbuffer[1] - 1]->hitwall = 0;
         }else if(recvbuffer[0] == WALL_ACK){
           players[playerid - 1]->health--;
           players[playerid - 1]->hitwall = 1;
         }else if(recvbuffer[0] == SUICIDE_ACK){
+          players[playerid - 1]->health = 0;
+          players[playerid - 1]->hitwall = 0;
+          deaths++;
+        }else if(recvbuffer[0] == KILLED_ACK){
+          players[playerid - 1]->health = 0;
+          players[playerid - 1]->hitwall = 0;
+          deaths++;
+        }else if(recvbuffer[0] == KILL_ACK){
+          frags = recvbuffer[2];
+        }else if(recvbuffer[0] == DEATH_ACK){
+          players[recvbuffer[1] - 1]->health = 0;
+        }else if (recvbuffer[0] == HIT_ACK){
           players[playerid - 1]->health--;
         }
       }
@@ -500,7 +521,6 @@ int main() {
     free_player(players[i]);
     players[i] = NULL;
   }
-  free_player(pl1);
   free_gamearea(game);
   free_horizontal_line();
   sleep(1);

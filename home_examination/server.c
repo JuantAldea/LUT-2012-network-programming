@@ -62,6 +62,7 @@ int main(int argc, char **argv)
                         sprintf(buffer, "Player %"SCNu8" disconnected", player_info->playerID);
                         printf("[CHAT SERVER] %s\n", buffer);
                         close(player_info->chat_descriptor);
+                        broadcast_disconnection_ack(game_server_socket, player_info->playerID, player_list);
                         node_t *previous = i->previous;
                         list_remove_node(i, player_list);
                         i = previous;
@@ -76,7 +77,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            remove_idle_players();
+            remove_idle_players(game_server_socket);
             respawn_death_players(game_server_socket);
 
             FD_ZERO(&descriptors_set);
@@ -108,7 +109,7 @@ int main(int argc, char **argv)
     }
 }
 
-void remove_idle_players()
+void remove_idle_players(int game_server_socket)
 {
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -116,6 +117,7 @@ void remove_idle_players()
         player_info_t *player_info = (player_info_t*)i->data;
         if (now.tv_sec - player_info->last_action.tv_sec > 20){
             printf("Removing player\n");
+            broadcast_disconnection_ack(game_server_socket, player_info->playerID, player_list);
             node_t *previous = i->previous;
             if (player_info->chat_descriptor > 0){
                 close(player_info->chat_descriptor);

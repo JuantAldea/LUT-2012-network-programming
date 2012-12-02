@@ -34,6 +34,8 @@
 #define PLAYER2 2
 #define PLAYER3 3
 #define PLAYER4 4
+#define PLAYER5 5
+#define PLAYER6 6
 
 // For blocks in the area, each coordinate consists of 2 numbers, 100 blocks max
 #define BLOCKSMAX 100
