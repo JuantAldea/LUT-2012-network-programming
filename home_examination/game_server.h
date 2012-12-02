@@ -7,6 +7,7 @@
 #include "game_protocol.h"
 #include "chat_protocol.h"
 #include <ncurses.h>
+#include "server.h"
 
 #define HEALTH_POINTS 10
 void game_server(int socket);
@@ -28,5 +29,5 @@ void respawn_player(player_info_t *player_info);
 
 player_info_t *player_collision_test(player_info_t *attacker, uint8_t x, uint8_t y, linked_list_t *players);
 int damage_player(player_info_t *player);
-
+void attacker_kills_victim(int socket, player_info_t *attacker, player_info_t *victim, linked_list_t *player_list);
 #endif

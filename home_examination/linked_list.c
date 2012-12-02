@@ -140,3 +140,44 @@ node_t *list_search_by_playerID(uint8_t id, linked_list_t *list)
     }
     return NULL;
 }
+
+void list_sort_by_frags(linked_list_t *list)
+{
+    int count = list->count;
+
+    node_t *highest = list->head->next;
+
+    for(node_t *i = highest; i != list->tail; i = i->next){
+        if (((player_info_t *)(highest->data))->frags < ((player_info_t *)(i->data))->frags){
+            highest = i;
+        }
+    }
+    //we need to keep the supremun of the set, because it's the start of the unsorted part of the list
+    //unlink
+    highest->previous->next = highest->next;
+    highest->next->previous = highest->previous;
+    //store the supremum in the first position
+    list_add_first(highest, list);
+    list->count--;
+    count--;//one is in it's place
+
+    while(count > 0){
+        node_t *remaining_max = highest->next;
+        //form the first unordered
+        for(node_t *i = remaining_max; i != list->tail; i = i->next){
+            //find the maximum
+            if (((player_info_t *)(remaining_max->data))->frags < ((player_info_t *)(i->data))->frags){
+                remaining_max = i;
+            }
+        }
+        assert(remaining_max != list->tail);
+        assert(remaining_max != list->head);
+        //unlink the max
+        remaining_max->previous->next = remaining_max->next;
+        remaining_max->next->previous = remaining_max->previous;
+        //and place it at the start of the list
+        list_add_first(remaining_max, list);
+        list->count--;
+        count--;
+    }
+}

@@ -67,4 +67,7 @@ node_t *list_search_by_addrinfo(struct sockaddr_storage *addr, linked_list_t *li
 node_t *list_search_by_addr(struct sockaddr_storage *addr, linked_list_t *list);
 node_t *list_search_by_playerID(uint8_t id, linked_list_t *list);
 
+
+void list_sort_by_frags(linked_list_t *list);
+
 #endif

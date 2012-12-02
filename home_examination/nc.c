@@ -81,7 +81,10 @@ void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
 {
   int x = 0, y = 0, index = 0, was_wall = 0;
   char pchar = ' ';
-  player *pl = players[playerid - 1];
+  player *pl = NULL;
+  if (playerid < 7){
+    pl = players[playerid - 1];
+  }
   clear(); // clear screen
   if (pl != NULL){
     if(pl->hitwall){
@@ -228,12 +231,14 @@ void add_log(char* message, int msglen) {
   }
 }
 
-int main() {
+int main()
+{
 
   int readc = 0, quit = 0, playerid = PLAYER1;
   int textpos = 0;
   int health;
   int ping_id;
+  status = 0;
   // Game area
   gamearea* game = new_gamearea(WIDTH, HEIGHT, 0, NULL);
 
@@ -245,7 +250,7 @@ int main() {
 
 
   initscr(); // Start ncurses
-  noecho(); // Disable echoing of terminal input
+  //noecho(); // Disable echoing of terminal input
   cbreak(); // Individual keystrokes
   intrflush(stdscr, FALSE); // Prevent interrupt flush
   keypad(stdscr,TRUE); // Allow keypad usage
@@ -276,8 +281,6 @@ int main() {
   int game_descriptor = prepare_client_UDP("::1", "27015", (struct sockaddr *)&server_sockaddr, &server_addrlen);
   int chat_server_descriptor = -1;
   struct timeval timeout;
-  timeout.tv_sec = 1;
-  timeout.tv_usec = 0;
   struct timeval ping_time;
   int number_of_lost_pings = 0;
   while(1) {
@@ -289,6 +292,9 @@ int main() {
     }
     int max_fd = fileno(stdin) > game_descriptor ? fileno(stdin) : game_descriptor;
     max_fd = max_fd > chat_server_descriptor ? max_fd : chat_server_descriptor;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+
     // Block until we have something
     if((rval = select(max_fd + 1,&readfs, NULL, NULL, &timeout)) > 0) {
       // From user
@@ -326,6 +332,7 @@ int main() {
             break;
           // Function keys, here F1 is reacted to
           case KEY_F(1):
+            number_of_lost_pings = 0;
             if (!status){
               clear_log();
               logposition = 0;
@@ -393,6 +400,8 @@ int main() {
         }else if(recvbuffer[0] == GAME_INFO){
           playerid = recvbuffer[1];
           health   = recvbuffer[2];
+          deaths = 0;
+          frags = 0;
           char path[255];
           sprintf(path, "clientdata/%.*s.map", 8, &recvbuffer[3]);
           int correct_map = 0;
@@ -426,6 +435,9 @@ int main() {
           }
           status = 1;
         }else if(recvbuffer[0] == SPAWN){
+          if (recvbuffer[1] == 7){
+            exit(1);
+          }
           if (players[recvbuffer[1] - 1] == NULL){
             players[recvbuffer[1] - 1] = new_player(recvbuffer[1], recvbuffer[2], recvbuffer[3], health);
           }else{
@@ -474,7 +486,6 @@ int main() {
       }
 
       if(chat_server_descriptor != -1 && FD_ISSET(chat_server_descriptor, &readfs)) {
-        fprintf(stderr, "ACTIVIDAD\n");
         char buffer[131];
         memset(buffer, 0, 131);
         int full_msg = 0;
@@ -498,8 +509,8 @@ int main() {
           chat_server_descriptor = -1;
         }
       }
-
     }
+
     if(status && number_of_lost_pings > 2){
       status = 0;
       close(chat_server_descriptor);

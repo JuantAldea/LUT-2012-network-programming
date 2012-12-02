@@ -1,15 +1,16 @@
 #include "game_server.h"
 #include <time.h>
 extern linked_list_t *player_list;
-linked_list_t *mapcycle_list = NULL;
+extern int change_map;
+//linked_list_t *mapcycle_list = NULL;
 map_t *current_map = NULL;
-char *current_map_id;
+char *current_map_id = NULL;
+extern int change_map;
 
-void game_server_init()
+void game_server_init(char *map_id)
 {
-    parse_mapcycle(&mapcycle_list);
+    current_map_id = map_id;
     char path[50];
-    current_map_id = mapcycle_list->head->next->data;
     sprintf(path, "serverdata/%.*s.map", 8, current_map_id);
     current_map = malloc(sizeof(map_t));
     printf("[GAME SERVER] Loading first map: %s\n", path);
@@ -19,7 +20,7 @@ void game_server_init()
 void game_server_shutdown()
 {
     free(current_map);
-    delete_mapcycle_list(&mapcycle_list);
+    //delete_mapcycle_list(&mapcycle_list);
 }
 
 void game_server(int socket)
@@ -32,6 +33,9 @@ void game_server(int socket)
 
     if (recvfrom(socket, &recvbuffer, 1024, 0, (struct sockaddr*)&sender_address, &sender_address_size) < 0){
         perror("Recvfrom multicast");
+    }
+    if (change_map){
+        return;
     }
     //try to find the client
     node_t *player_node = list_search_by_addrinfo(&sender_address, player_list);
@@ -46,7 +50,8 @@ void game_server(int socket)
                 player_info->addr = sender_address;
                 player_info->addr_len = sender_address_size;
                 player_info->chat_descriptor = -1;
-                player_info->playerID = get_first_free_id();
+                int a = get_first_free_id();
+                player_info->playerID =  a == 3 ? 7 : a;
                 player_info->current_health = HEALTH_POINTS;
                 player_info->position[0] = current_map->starting_positions[player_info->playerID - 1][0];
                 player_info->position[1] = current_map->starting_positions[player_info->playerID - 1][1];
@@ -61,16 +66,27 @@ void game_server(int socket)
             }
         }
     }else{//the client is known
+        if(((player_info_t*)player_node->data)->playerID > 6){
+            return;
+        }
         if(recvbuffer[0] == READY){
             //the client is known
             printf("[GAME SERVER]: Sending spawn to Player %d: (%d, %d)\n",
                 ((player_info_t*)player_node->data)->playerID,
                 ((player_info_t*)player_node->data)->position[0],
-                ((player_info_t*)player_node->data)->position[1]
-                );
-            broadcast_spawn(socket, ((player_info_t*)player_node->data), player_list);
+                ((player_info_t*)player_node->data)->position[1]);
             //inform the new client about the other players
             send_positions_refresh(socket, (player_info_t*)player_node->data, player_list);
+            for (node_t *j = player_list->head->next; j != player_list->tail; j = j->next){
+                player_info_t *camper = (player_info_t*)j->data;
+                if (camper != ((player_info_t*)player_node->data)){
+                    if (camper->position[0] == current_map->starting_positions[((player_info_t*)player_node->data)->playerID - 1][0] &&
+                        camper->position[1] == current_map->starting_positions[((player_info_t*)player_node->data)->playerID - 1][1]){
+                        attacker_kills_victim(socket, ((player_info_t*)player_node->data), camper, player_list);
+                    }
+                }
+            }
+            broadcast_spawn(socket, ((player_info_t*)player_node->data), player_list);
         }else if(recvbuffer[0] == MOVE && ((player_info_t*)player_node->data)->current_health > 0){
             //necromancy is not allowed here -> dead players do not move!
             player_info_t *player = (player_info_t*)player_node->data;
@@ -94,8 +110,8 @@ void game_server(int socket)
                 break;
             }
 
-            //spawn points are safe spots
-            if (!is_position_a_spawn_point(current_map, x, y)){
+            //spawn points are safe spots -> not anymore
+            if (1 || !is_position_a_spawn_point(current_map, x, y)){
                 //Player moves, does he hit a wall?
                 if (!is_position_a_wall(current_map, x, y)){
                     //does he hit another player?
@@ -107,6 +123,7 @@ void game_server(int socket)
                         }else{
                             //Player scored a frag!
                             player->frags++;
+                            victim->deaths++;
                             send_killed_ack(socket, player->playerID, victim);
                             send_kill_ack(socket, victim->playerID, player);
                             broadcast_death_ack(socket, victim->playerID, player_list);
@@ -139,29 +156,32 @@ void game_server(int socket)
                 }
             }
         }else if(recvbuffer[0] == PING){
-            // struct timespec t1, t2;
-            // t1.tv_sec = 0;
-            // t1.tv_nsec = 500000000;
-            // nanosleep(&t1 , &t2);
+            //struct timespec t1, t2;
+            //t1.tv_sec = 0;
+            //t1.tv_nsec = 500000000;
+            //nanosleep(&t1 , &t2);
             send_pong(socket, recvbuffer[1], ((player_info_t*)player_node->data));
         }
-    }
+        //update the idle time
+        if (player_node != NULL && recvbuffer[0] != PING){
+            gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
+        }
 
-    //update the idle time
-    if (player_node != NULL && recvbuffer[0] != PING){
-        gettimeofday(&((player_info_t*)player_node->data)->last_action, NULL);
+        //check end of round
+        if(((player_info_t*)player_node->data)->frags >= current_map->frag_limit){
+            list_sort_by_frags(player_list);
+            int j = 0;
+            for (node_t *i = player_list->head->next; i != player_list->tail && j < 3; i = i->next, j++){
+                player_info_t *player = (player_info_t *)i->data;
+                char buffer[200];
+                sprintf(buffer, "Top %d: Player %"SCNu8": %"SCNu8, j + 1, player->playerID, player->frags);
+                chat_forward_msg(0, buffer, player_list);
+            }
+            printf("[GAME SERVER] Frag limit reached\n");
+            change_map = 1;
+        }
     }
-
-    // //check end of round
-    // if(((player_info_t*)player_node->data)->frags >= current_map->frag_limit){
-    //     printf("[GAME SERVER] Frag limit reached\n");
-    //     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
-    //         player_info_t *player = (player_info_t *)i->data;
-    //         send_game_info(socket, current_map, player);
-    //     }
-    // }
 }
-
 
 void parse_mapcycle(linked_list_t **list)
 {
@@ -262,7 +282,6 @@ int is_position_a_spawn_point(map_t *map, int posx, int posy)
   return 0;
 }
 
-
 void respawn_player(player_info_t *player_info)
 {
     player_info->current_health = HEALTH_POINTS;
@@ -278,6 +297,15 @@ void respawn_death_players(int socket)
     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
         player_info_t *player_info = (player_info_t*)i->data;
         if (player_info->current_health <= 0 && now.tv_sec - player_info->death_time.tv_sec >= 3){
+            for (node_t *j = player_list->head->next; j != player_list->tail; j = j->next){
+                if (i != j){
+                    player_info_t *camper = (player_info_t*)j->data;
+                    if (camper->position[0] == current_map->starting_positions[player_info->playerID - 1][0] &&
+                        camper->position[1] == current_map->starting_positions[player_info->playerID - 1][1]){
+                        attacker_kills_victim(socket, player_info, camper, player_list);
+                    }
+                }
+            }
             respawn_player(player_info);
             broadcast_spawn(socket, player_info, player_list);
             printf("[GAME SERVER] Respawning Player %d %d %d\n",
@@ -312,4 +340,15 @@ int damage_player(player_info_t *player)
         return 1;
     }
     return 0;
+}
+
+void attacker_kills_victim(int socket, player_info_t *attacker, player_info_t *victim, linked_list_t *player_list)
+{
+    attacker->frags++;
+    victim->deaths++;
+    victim->current_health = 0;
+    gettimeofday(&victim->death_time, NULL);
+    send_killed_ack(socket, attacker->playerID, victim);
+    send_kill_ack(socket, victim->playerID, attacker);
+    broadcast_death_ack(socket, victim->playerID, player_list);
 }
