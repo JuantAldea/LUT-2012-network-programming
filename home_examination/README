@@ -1,4 +1,3 @@
-
 ###############################################
 #        CT30A5001 - Network Programming      #
 #               Home Examination              #
@@ -7,9 +6,46 @@
 #                  README                     #
 ###############################################
 
+I haven't followed a few things pointed in the wiki, for example sending the amount of players and their current life before sending the map is pointless as they could change, also players shouldn't know the remaining life of other players
+
+Controls:
+    - Connect/disconnect as player: F1
+    - Connect/disconnect as observer: F2
+
+Running
+    $ ./game -h <server> -p <port>
+    $ ./server -p <port>
+
+Features implemented
+    - Game initialization (UDP)
+    - Map loading (from files) and transferring (TCP)
+        - Map loading from files
+        - Transferring properly
+        - Basic map verification (checked with md5)
+    - Chat and notification implementation
+    - The game implementation
+        - Movement
+        - Hit detection
+        - Frag counting, winner detection and round changes (winner detection == top3)
+        - Player id handling
+    - Crash/disconnection detection on both
+        - PING/PONG as heartbeat -> 2 misses pongs implies desconnection
+        - Chat TCP connection used also.
+Features not implemented
+    - Handling of lost messages
+        - I'm using PING/PONG to check the state of the connection.
+
+Implemented optional features
+    - Spectator Mode -> F2
+    - Map checking -> md5
+    - Health used in battles
+    Latency measurement -> PING/PONG used as heartbeat instead of movement ACKs
+
+Not Implemented optional features
+    - Duplicate msg detection: The client structure is ready to do that (last package ID field), but nothing more, anyway since I'm using PING/PONG as heartbeat I'm not sending duplicate move msgs.
 
 
-
+File estructure
 .
 ├── chat_protocol.c -Chat server functions
 ├── chat_protocol.h
@@ -46,3 +82,5 @@
 ├── tcp.h
 ├── udp.c UDP Server and client init
 └── udp.h
+
+

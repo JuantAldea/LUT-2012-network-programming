@@ -190,6 +190,10 @@ void game_server(int socket)
             for (node_t *i = player_list->head->next; i != player_list->tail && j < 3; i = i->next, j++){
                 player_info_t *player = (player_info_t *)i->data;
                 char buffer[200];
+                if (i == player_list->head->next){
+                    sprintf(buffer, "WINNER: Player %"SCNu8, player->playerID);
+                    chat_forward_msg(0, buffer, player_list);
+                }
                 sprintf(buffer, "Top %d: Player %"SCNu8": %"SCNu8, j + 1, player->playerID, player->frags);
                 chat_forward_msg(0, buffer, player_list);
             }
