@@ -122,11 +122,7 @@ void game_server(int socket)
                             send_hit_ack(socket, victim);
                         }else{
                             //Player scored a frag!
-                            player->frags++;
-                            victim->deaths++;
-                            send_killed_ack(socket, player->playerID, victim);
-                            send_kill_ack(socket, victim->playerID, player);
-                            broadcast_death_ack(socket, victim->playerID, player_list);
+                            attacker_kills_victim(socket, player, victim, player_list);
                             //Player also moves to the empty cell
                             player->position[0] = x;
                             player->position[1] = y;
@@ -344,6 +340,9 @@ int damage_player(player_info_t *player)
 
 void attacker_kills_victim(int socket, player_info_t *attacker, player_info_t *victim, linked_list_t *player_list)
 {
+    char notification[129];
+    sprintf(notification, "Player %"SCNu8" killed Player %"SCNu8, attacker->playerID, victim->playerID);
+    chat_forward_msg(0, notification, player_list);
     attacker->frags++;
     victim->deaths++;
     victim->current_health = 0;

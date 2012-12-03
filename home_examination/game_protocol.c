@@ -100,7 +100,9 @@ void broadcast_move_ack(int socket, player_info_t *player_updated, linked_list_t
 {
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
-        send_move_ack(socket, player_updated, player_to_update);
+        if(send_move_ack(socket, player_updated, player_to_update) <= 0){
+            printf("Error Broadcasting move ack: %s\n", strerror(errno));
+        }
     }
 }
 
@@ -109,7 +111,9 @@ void send_positions_refresh(int socket, player_info_t *player_to_refresh, linked
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player = (player_info_t*)i->data;
         if (player != player_to_refresh){
-            send_move_ack(socket, player, player_to_refresh);
+            if(send_move_ack(socket, player, player_to_refresh) <= 0){
+                printf("Error Broadcasting move ack: %s\n", strerror(errno));
+            }
         }
     }
 }
@@ -118,7 +122,9 @@ void broadcast_disconnection_ack(int socket, uint8_t playerid, linked_list_t *pl
 {
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
-        send_disconnection_ack(socket, playerid, player_to_update);
+        if(send_disconnection_ack(socket, playerid, player_to_update) <= 0){
+            printf("Error Broadcasting disconnect ack: %s\n", strerror(errno));
+        }
     }
 }
 
@@ -134,7 +140,9 @@ void broadcast_death_ack(int socket, uint8_t playerid, linked_list_t *players)
 {
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
-        send_death_ack(socket, playerid, player_to_update);
+        if(send_death_ack(socket, playerid, player_to_update) <= 0){
+            printf("Error Broadcasting death ack: %s\n", strerror(errno));
+        }
     }
 }
 
@@ -151,7 +159,9 @@ void broadcast_spawn(int socket, player_info_t *updated_player, linked_list_t *p
 {
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
-        send_spawn(socket, updated_player, player_to_update);
+        if(send_spawn(socket, updated_player, player_to_update) <= 0){
+            printf("Error Broadcasting spawn ack: %s\n", strerror(errno));
+        }
     }
 }
 
@@ -172,4 +182,19 @@ int send_pong(int socket, uint8_t ping_id, player_info_t *player)
     return sendto(socket, &buffer, 2, 0, (struct sockaddr*)&player->addr, player->addr_len);
 }
 
+int send_map_change(int socket, player_info_t *player)
+{
+    uint8_t buffer = MAP_CHANGE;
+    return sendto(socket, &buffer, 1, 0, (struct sockaddr*)&player->addr, player->addr_len);
+}
+
+void broadcast_map_change(int socket, linked_list_t *players)
+{
+    for (node_t *i = players->head->next; i != players->tail; i = i->next){
+        player_info_t *player = (player_info_t*)i->data;
+        if (send_map_change(socket, player) <= 0){
+            printf("Error Broadcasting map change: %s\n", strerror(errno));
+        }
+    }
+}
 

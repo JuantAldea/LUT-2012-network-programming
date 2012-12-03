@@ -231,9 +231,30 @@ void add_log(char* message, int msglen) {
   }
 }
 
-int main()
-{
+void help(char *program){
+    printf("Client %s -h <server address> -p <port>\n", program);
+    return;
+}
 
+int is_number(char *str, int base, int *number)
+{
+    if (str != NULL){
+        char *endptr;
+        *number = strtol(str, &endptr, base);
+        int return_value = (*str != '\0' && *endptr == '\0');
+        return return_value;
+    }
+    return 0;
+}
+
+int client(char *address, int port)
+{
+  char game_port[20];
+  char chat_port[20];
+  char map_port[20];
+  sprintf(game_port, "%d", port);
+  sprintf(chat_port, "%d", port + 1);
+  sprintf(map_port,  "%d", port + 2);
   int readc = 0, quit = 0, playerid = PLAYER1;
   int textpos = 0;
   int health;
@@ -250,7 +271,7 @@ int main()
 
 
   initscr(); // Start ncurses
-  //noecho(); // Disable echoing of terminal input
+  noecho(); // Disable echoing of terminal input
   cbreak(); // Individual keystrokes
   intrflush(stdscr, FALSE); // Prevent interrupt flush
   keypad(stdscr,TRUE); // Allow keypad usage
@@ -278,7 +299,7 @@ int main()
   int rval = 0;
   struct sockaddr_storage server_sockaddr;
   socklen_t server_addrlen;
-  int game_descriptor = prepare_client_UDP("::1", "27015", (struct sockaddr *)&server_sockaddr, &server_addrlen);
+  int game_descriptor = prepare_client_UDP(address, game_port, (struct sockaddr *)&server_sockaddr, &server_addrlen);
   int chat_server_descriptor = -1;
   struct timeval timeout;
   struct timeval ping_time;
@@ -416,8 +437,7 @@ int main()
 
             if(!correct_map){
               //download the map if the map is not found or the hash is wrong
-              fprintf(stderr, "DOWNLOADING\n");
-              int descriptor = prepare_connection_TCP("::1", "27017");
+              int descriptor = prepare_connection_TCP(address, map_port);
               if (descriptor > 0){
                 char id[9];
                 recv_map(descriptor, id);
@@ -431,7 +451,7 @@ int main()
           game = new_gamearea(map.rows, map.colums, map.number_of_blocks, map.block_positions);
           send_ready(game_descriptor, (struct sockaddr*)&sender_address, sender_address_size);
           if (chat_server_descriptor == -1){
-            chat_server_descriptor = prepare_connection_TCP("::1", "27016");
+            chat_server_descriptor = prepare_connection_TCP(address, chat_port);
           }
           status = 1;
         }else if(recvbuffer[0] == SPAWN){
@@ -482,6 +502,21 @@ int main()
             timersub(&now, &ping_time, &result);
             latency = time_diff(&now, &ping_time);
           }
+        }else if (recvbuffer[0] == MAP_CHANGE){
+          sleep(2);
+          clear_log();
+          logposition = 0;
+          number_of_lost_pings = 0;
+          if(chat_server_descriptor > 0){
+            close(chat_server_descriptor);
+            chat_server_descriptor = -1;
+          }
+
+          for (int i = 0; i < 6; i++){
+            free_player(players[i]);
+            players[i] = NULL;
+          }
+          send_connect(game_descriptor,(struct sockaddr *)&server_sockaddr, server_addrlen);
         }
       }
 
@@ -548,6 +583,58 @@ int main()
   endwin(); // End ncurses
   return 0;
 }
+
+int main(int argc, char **argv)
+{
+  int optc = -1;
+  char *port = NULL;
+  char *addr = NULL;
+
+  if (argc < 2){ //-p27015 are two argvs
+      help(argv[0]);
+      return 0;
+  }
+
+  while ((optc = getopt(argc, argv, "h:p:")) != -1) {
+      switch (optc) {
+          case 'h':
+              addr = optarg;
+              break;
+          case 'p':
+          {
+              int port_number;
+              if (is_number(optarg, 10, &port_number)){
+                  port = optarg;
+              }else{
+                  printf("Invalid port number: %s\n", optarg);
+              }
+          }
+              break;
+          case ':':
+              printf ("Something?\n");
+              break;
+          case '?':
+              switch(optopt){
+                  case 'p':
+                  case 'l':
+                      printf("-%c: Missing port.", optopt);
+                      break;
+                  case 'h':
+                      printf("-h: Missing IP address.\n");
+                      break;
+              }
+              break;
+      }
+  }
+
+  if (addr != NULL && port != NULL){
+    client(addr, atoi(port));
+  }else{
+    help(argv[0]);
+  }
+  return 0;
+}
+
 
 double time_diff(struct timeval *after, struct timeval *before)
 {

@@ -11,7 +11,7 @@
 #include "chat_server.h"
 #include "game_protocol.h"
 #include "chat_protocol.h"
-
+#include <signal.h>
 void kick_players(linked_list_t *player_list);
-
+void server(int port);
 #endif

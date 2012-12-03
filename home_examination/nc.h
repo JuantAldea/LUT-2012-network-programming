@@ -5,6 +5,7 @@
 #include <sys/select.h>
 #include <signal.h>
 #include <stdint.h>
+#include <string.h>
 #include "system_headers.h"
 #include "game_protocol.h"
 #include "chat_protocol.h"

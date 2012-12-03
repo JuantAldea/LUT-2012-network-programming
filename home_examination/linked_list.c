@@ -148,7 +148,7 @@ void list_sort_by_frags(linked_list_t *list)
     node_t *highest = list->head->next;
 
     for(node_t *i = highest; i != list->tail; i = i->next){
-        if (((player_info_t *)(highest->data))->frags < ((player_info_t *)(i->data))->frags){
+        if (((player_info_t *)(highest->data))->frags > ((player_info_t *)(i->data))->frags){
             highest = i;
         }
     }
@@ -163,10 +163,10 @@ void list_sort_by_frags(linked_list_t *list)
 
     while(count > 0){
         node_t *remaining_max = highest->next;
-        //form the first unordered
+        //from the first unordered
         for(node_t *i = remaining_max; i != list->tail; i = i->next){
             //find the maximum
-            if (((player_info_t *)(remaining_max->data))->frags < ((player_info_t *)(i->data))->frags){
+            if (((player_info_t *)(remaining_max->data))->frags > ((player_info_t *)(i->data))->frags){
                 remaining_max = i;
             }
         }

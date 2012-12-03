@@ -11,21 +11,98 @@ double time_diff(struct timeval *after, struct timeval *before)
     return delta / (double)1000;
 }
 
+void help(char *program)
+{
+    printf("Server %s -p <port>\n", program);
+    return;
+}
+
+int is_number(char *str, int base, int *number)
+{
+    if (str != NULL){
+        char *endptr;
+        *number = strtol(str, &endptr, base);
+        int return_value = (*str != '\0' && *endptr == '\0');
+        return return_value;
+    }
+    return 0;
+}
+
+
 int main(int argc, char **argv)
 {
-    int server_running = 1;
+    int optc = -1;
+    char *port = NULL;
+
+    if (argc < 2){ //-p27015 are two argvs
+        help(argv[0]);
+        return 0;
+    }
+
+    while ((optc = getopt(argc, argv, "p:")) != -1) {
+        switch (optc) {
+            case 'p':
+            {
+                int port_number;
+                if (is_number(optarg, 10, &port_number)){
+                    port = optarg;
+                }else{
+                    printf("Invalid port number: %s\n", optarg);
+                }
+            }
+                break;
+            case ':':
+                printf ("Something?\n");
+                break;
+            case '?':
+                switch(optopt){
+                    case 'p':
+                        printf("-%c: Missing port.", optopt);
+                        break;
+                }
+                break;
+        }
+    }
+    if (port == NULL){
+        help(argv[0]);
+    }else{
+        server(atoi(port));
+    }
+    return 0;
+}
+static volatile int server_running = 1;
+
+void sighandler(int sig)
+{
+    switch(sig){
+        default:
+            server_running = 0;
+        break;
+    }
+
+}
+
+void server(int port)
+{
     linked_list_t *mapcycle_list = NULL;
     parse_mapcycle(&mapcycle_list);
     node_t *current_map = mapcycle_list->head;
-
+    char port_game[100];
+    char port_chat[100];
+    char port_map[100];
+    sprintf(port_game, "%d", port);
+    sprintf(port_chat, "%d", port + 1);
+    sprintf(port_map,  "%d", port + 2);
+    signal(SIGTERM, sighandler);
+    signal(SIGINT, sighandler);
     //node_t *current_map = mapcycle_list->head->next;
     while(server_running){
         printf("[SERVER] NEW GAME\n");
         player_list = malloc(sizeof(linked_list_t));
         list_init(player_list);
-        int game_server_socket = prepare_server_UDP("27015", AF_INET6);
-        int chat_server_socket = prepare_server_TCP("27016", AF_INET6);
-        int map_server_socket  = prepare_server_TCP("27017", AF_INET6);
+        int game_server_socket = prepare_server_UDP(port_game, AF_INET6);
+        int chat_server_socket = prepare_server_TCP(port_chat, AF_INET6);
+        int map_server_socket  = prepare_server_TCP(port_map , AF_INET6);
 
         current_map = current_map->next;
         if(current_map == mapcycle_list->tail){
@@ -55,24 +132,20 @@ int main(int argc, char **argv)
             timeout.tv_sec = 3;
 
             if (FD_ISSET(map_server_socket , &descriptors_set)){
-                printf("ACTIVIDAD1\n");
                 map_server(map_server_socket, current_map_id);
             }
 
             if (FD_ISSET(chat_server_socket , &descriptors_set)){
-                printf("ACTIVIDAD1\n");
                 chat_server(chat_server_socket);
             }
 
             if (FD_ISSET(game_server_socket , &descriptors_set)){
-                printf("ACTIVIDAD1\n");
                 game_server(game_server_socket);
             }
 
             for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
                 player_info_t *player_info = (player_info_t*)i->data;
                 if (FD_ISSET(player_info->chat_descriptor , &descriptors_set)){
-                    printf("ACTIVIDAD1\n");
                     char buffer[129];
                     memset(buffer, 0, 129);
                     int full_recv = 0;
@@ -117,8 +190,8 @@ int main(int argc, char **argv)
                 }
             }
             if (change_map){
-                printf("sleeping");
                 sleep(5);
+                broadcast_map_change(game_server_socket, player_list);
             }
         }
         change_map = 0;
@@ -133,7 +206,6 @@ int main(int argc, char **argv)
         close(map_server_socket);
         close(chat_server_socket);
         close(game_server_socket);
-        printf("CLOSED\n");
     }
     delete_mapcycle_list(&mapcycle_list);
 }

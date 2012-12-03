@@ -58,7 +58,6 @@ int prepare_client_UDP(char *address, char *port, struct sockaddr *server, sockl
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = IPPROTO_UDP;
 
-
     int error = 0;
     struct addrinfo *res = NULL;
     if ((error = getaddrinfo(address, port, &hints, &res)) < 0){

@@ -23,6 +23,8 @@
 #define PING 128
 #define PONG 129
 
+#define MAP_CHANGE 150
+
 int send_connect(int socket, struct sockaddr *addr, socklen_t address_len);
 int send_game_info(int socket, map_t *map,  player_info_t *player);
 int send_ready(int socket, struct sockaddr *addr, socklen_t address_len);
@@ -35,16 +37,19 @@ int send_suicide_ack(int socket, player_info_t *player);
 int send_kill_ack(int socket, uint8_t playerid, player_info_t *player);
 int send_killed_ack(int socket, uint8_t playerid, player_info_t *player);
 int send_death_ack(int socket, uint8_t death_id, player_info_t *player);
-
 int send_disconnection_ack(int socket, uint8_t playerid, player_info_t *player);
+int send_map_change(int socket, player_info_t *player);
 
 void broadcast_move_ack(int socket, player_info_t *player_updated, linked_list_t *players);
 void send_positions_refresh(int socket, player_info_t *player_to_refresh, linked_list_t *players);
 void broadcast_disconnection_ack(int socket, uint8_t playerid, linked_list_t *players);
 void broadcast_death_ack(int socket, uint8_t playerid, linked_list_t *players);
 void broadcast_spawn(int socket, player_info_t *player_updated, linked_list_t *player);
+void broadcast_map_change(int socket, linked_list_t *player);
 
 int send_ping(int socket, struct sockaddr *addr, socklen_t address_len);
 int send_pong(int socket, uint8_t ping_id, player_info_t *player);
+
+
 
 #endif

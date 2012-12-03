@@ -3,38 +3,37 @@
 int read_map(char *path, map_t *map)
 {
     FILE *map_file = fopen(path, "r");
-    int readed_bytes;
     memset(map, 0, sizeof(map_t));
     md5_from_file(path, map->hash);
     size_t size = 255;
     char *buffer = malloc(size);
     //map id
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%s", map->map_id);
     //rows
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%"SCNu8, &map->rows);
     // //colums
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%"SCNu8, &map->colums);
     //number of blocks
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%"SCNu8, &map->number_of_blocks);
     //blocks
     for(int i = 0; i < map->number_of_blocks; i++){
-        readed_bytes = getline(&buffer, &size, map_file);
+        getline(&buffer, &size, map_file);
         sscanf(buffer,"%"SCNu8" %"SCNu8, &map->block_positions[i][0], &map->block_positions[i][1]);
     }
     //max players
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%"SCNu8, &map->max_players);
     //starting positions
     for(int i = 0; i < map->max_players; i++){
-        readed_bytes = getline(&buffer, &size, map_file);
+        getline(&buffer, &size, map_file);
         sscanf(buffer,"%"SCNu8" %"SCNu8, &map->starting_positions[i][0], &map->starting_positions[i][1]);
     }
     //frag limit
-    readed_bytes = getline(&buffer, &size, map_file);
+    getline(&buffer, &size, map_file);
     sscanf(buffer,"%"SCNu8, &map->frag_limit);
     fclose(map_file);
     free(buffer);
@@ -67,7 +66,7 @@ int send_map(int socket, char *map_id)
     //send file
     int readed_bytes = 0;
     int total_sent_bytes = 0;
-    while((readed_bytes = fread(buffer, sizeof(char), MAX_MSG_SIZE, source)) > 0 && !error){
+    while((fread(buffer, sizeof(char), MAX_MSG_SIZE, source)) > 0 && !error){
         int sent_bytes = 0;
         while (sent_bytes < readed_bytes && !error){
             int last_sent_bytes = send(socket, &(buffer[sent_bytes]), readed_bytes - sent_bytes, 0);
