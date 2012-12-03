@@ -1,6 +1,7 @@
 #include "game_server.h"
 #include <time.h>
 extern linked_list_t *player_list;
+extern linked_list_t *observer_list;
 extern int change_map;
 //linked_list_t *mapcycle_list = NULL;
 map_t *current_map = NULL;
@@ -43,18 +44,19 @@ void game_server(int socket)
     if (player_node == NULL){
         //the server only wants CONNECTs from unknown clients
         if (recvbuffer[0] == CONNECT){
-            //check if the server is not full
+            //check if the server is not full and Player wants to join as player.
             if (player_list->count < current_map->max_players){
                 player_info_t *player_info = malloc(sizeof(player_info_t));
                 memset(player_info, 0, sizeof(player_info_t));
                 player_info->addr = sender_address;
                 player_info->addr_len = sender_address_size;
                 player_info->chat_descriptor = -1;
-                int a = get_first_free_id();
-                player_info->playerID =  a == 3 ? 7 : a;
+                player_info->playerID = recvbuffer[1] ? get_first_free_id() : 255;
                 player_info->current_health = HEALTH_POINTS;
-                player_info->position[0] = current_map->starting_positions[player_info->playerID - 1][0];
-                player_info->position[1] = current_map->starting_positions[player_info->playerID - 1][1];
+                if (recvbuffer[1]){
+                    player_info->position[0] = current_map->starting_positions[player_info->playerID - 1][0];
+                    player_info->position[1] = current_map->starting_positions[player_info->playerID - 1][1];
+                }
                 gettimeofday(&player_info->last_action, NULL);
                 send_game_info(socket, current_map, player_info);
                 player_node = list_create_node(player_info);
@@ -66,19 +68,18 @@ void game_server(int socket)
             }
         }
     }else{//the client is known
-        if(((player_info_t*)player_node->data)->playerID > 6){
-            return;
-        }
         if(recvbuffer[0] == READY){
             //the client is known
-            printf("[GAME SERVER]: Sending spawn to Player %d: (%d, %d)\n",
-                ((player_info_t*)player_node->data)->playerID,
-                ((player_info_t*)player_node->data)->position[0],
-                ((player_info_t*)player_node->data)->position[1]);
             //inform the new client about the other players
             send_positions_refresh(socket, (player_info_t*)player_node->data, player_list);
+            if(((player_info_t*)player_node->data)->playerID == 255){
+                return;
+            }
             for (node_t *j = player_list->head->next; j != player_list->tail; j = j->next){
                 player_info_t *camper = (player_info_t*)j->data;
+                if(camper->playerID == 255){
+                    continue;
+                }
                 if (camper != ((player_info_t*)player_node->data)){
                     if (camper->position[0] == current_map->starting_positions[((player_info_t*)player_node->data)->playerID - 1][0] &&
                         camper->position[1] == current_map->starting_positions[((player_info_t*)player_node->data)->playerID - 1][1]){
@@ -86,10 +87,17 @@ void game_server(int socket)
                     }
                 }
             }
-            broadcast_spawn(socket, ((player_info_t*)player_node->data), player_list);
+            if(((player_info_t*)player_node->data)->playerID != 255){
+                printf("[GAME SERVER]: Sending spawn to Player %d: (%d, %d)\n",
+                ((player_info_t*)player_node->data)->playerID,
+                ((player_info_t*)player_node->data)->position[0],
+                ((player_info_t*)player_node->data)->position[1]);
+                broadcast_spawn(socket, ((player_info_t*)player_node->data), player_list);
+            }
         }else if(recvbuffer[0] == MOVE && ((player_info_t*)player_node->data)->current_health > 0){
             //necromancy is not allowed here -> dead players do not move!
             player_info_t *player = (player_info_t*)player_node->data;
+            if (player->playerID == 255){return;}
             uint8_t x = player->position[0];
             uint8_t y = player->position[1];
             uint16_t key = ntohs(*(uint16_t*)(recvbuffer +1));
@@ -156,6 +164,7 @@ void game_server(int socket)
             //t1.tv_sec = 0;
             //t1.tv_nsec = 500000000;
             //nanosleep(&t1 , &t2);
+            printf("[PONG] Player %"SCNu8"\n", ((player_info_t*)player_node->data)->playerID);
             send_pong(socket, recvbuffer[1], ((player_info_t*)player_node->data));
         }
         //update the idle time
@@ -292,10 +301,16 @@ void respawn_death_players(int socket)
     gettimeofday(&now, NULL);
     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
         player_info_t *player_info = (player_info_t*)i->data;
+        if(player_info->playerID == 255){
+            continue;
+        }
         if (player_info->current_health <= 0 && now.tv_sec - player_info->death_time.tv_sec >= 3){
             for (node_t *j = player_list->head->next; j != player_list->tail; j = j->next){
                 if (i != j){
                     player_info_t *camper = (player_info_t*)j->data;
+                    if(camper->playerID == 255){
+                        continue;
+                    }
                     if (camper->position[0] == current_map->starting_positions[player_info->playerID - 1][0] &&
                         camper->position[1] == current_map->starting_positions[player_info->playerID - 1][1]){
                         attacker_kills_victim(socket, player_info, camper, player_list);
@@ -314,8 +329,12 @@ void respawn_death_players(int socket)
 
 player_info_t *player_collision_test(player_info_t *attacker, uint8_t x, uint8_t y, linked_list_t *players)
 {
+    if (attacker->playerID == 255){return NULL;}
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *attacked = (player_info_t*)i->data;
+        if (attacked->playerID == 255){
+            continue;
+        }
         if (attacker != attacked){
             if (x == attacked->position[0] && y == attacked->position[1]){
                 return attacked;
@@ -350,4 +369,5 @@ void attacker_kills_victim(int socket, player_info_t *attacker, player_info_t *v
     send_killed_ack(socket, attacker->playerID, victim);
     send_kill_ack(socket, victim->playerID, attacker);
     broadcast_death_ack(socket, victim->playerID, player_list);
+    printf("[KILL] %d %d\n", attacker->playerID, victim->playerID);
 }

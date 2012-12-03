@@ -1,6 +1,7 @@
 #include "server.h"
 
 linked_list_t *player_list = NULL;
+linked_list_t *observer_list = NULL;
 
 extern char *current_map_id;
 int change_map = 0;
@@ -99,7 +100,9 @@ void server(int port)
     while(server_running){
         printf("[SERVER] NEW GAME\n");
         player_list = malloc(sizeof(linked_list_t));
+        observer_list = malloc(sizeof(linked_list_t));
         list_init(player_list);
+        list_init(observer_list);
         int game_server_socket = prepare_server_UDP(port_game, AF_INET6);
         int chat_server_socket = prepare_server_TCP(port_chat, AF_INET6);
         int map_server_socket  = prepare_server_TCP(port_map , AF_INET6);
@@ -152,20 +155,30 @@ void server(int port)
                     int bytes_recv = chat_recv(player_info->chat_descriptor, buffer, &full_recv);
                     if(bytes_recv == 0){
                         //HANDLE DISCONNECT
-                        char buffer[129];
-                        sprintf(buffer, "Player %"SCNu8" disconnected", player_info->playerID);
-                        printf("[CHAT SERVER] %s\n", buffer);
+                        int player_id = player_info->playerID;
+
                         close(player_info->chat_descriptor);
-                        broadcast_disconnection_ack(game_server_socket, player_info->playerID, player_list);
                         node_t *previous = i->previous;
                         list_remove_node(i, player_list);
                         i = previous;
+
+                        if (player_id == 255){
+                            continue;
+                        }
+
+                        char buffer[129];
+                        sprintf(buffer, "Player %"SCNu8" disconnected", player_id);
+                        printf("[CHAT SERVER] %s\n", buffer);
+                        broadcast_disconnection_ack(game_server_socket, player_id, player_list);
                         chat_forward_msg(0, buffer, player_list);
                     }else if (bytes_recv < 0){
                         printf("[CHAT SERVER] Error receiving from %"SCNu8"%s\n", player_info->playerID, strerror(errno));
                     }else if (full_recv){
                         if (buffer[2] == '*'){
                             change_map = 1;
+                        }
+                        if (player_info->playerID == 255){
+                            continue;
                         }
                         chat_forward_msg(player_info->playerID, &buffer[2], player_list);
                         gettimeofday(&player_info->last_action, NULL);
@@ -216,6 +229,7 @@ void remove_idle_players(int game_server_socket)
     gettimeofday(&now, NULL);
     for (node_t *i = player_list->head->next; i != player_list->tail; i = i->next){
         player_info_t *player_info = (player_info_t*)i->data;
+        if (player_info->playerID == 255){continue;}
         if (now.tv_sec - player_info->last_action.tv_sec > 20){
             char buffer[128];
             sprintf(buffer, "Player %"SCNu8" kicked due to inactivity", player_info->playerID);

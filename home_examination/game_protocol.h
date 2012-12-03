@@ -25,7 +25,7 @@
 
 #define MAP_CHANGE 150
 
-int send_connect(int socket, struct sockaddr *addr, socklen_t address_len);
+int send_connect(int socket, uint8_t mode, struct sockaddr *addr, socklen_t address_len);
 int send_game_info(int socket, map_t *map,  player_info_t *player);
 int send_ready(int socket, struct sockaddr *addr, socklen_t address_len);
 int send_spawn(int socket, player_info_t *player_updated, player_info_t *player_to_notify);

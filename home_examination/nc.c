@@ -11,6 +11,7 @@ int logposition = 0;
 int logentries = 0;
 
 // Some status variables
+int spectator_mode = 0;
 int status = 0;
 uint8_t deaths = 0;
 uint8_t frags = 0;
@@ -128,10 +129,13 @@ void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
       if (players[i] != NULL && players[i]->posx == x && players[i]->posy == y && players[i]->health > 0){
         if(players[i]->hitwall){
           attron(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
+          pchar = 'o'; // Player mark
+          //attroff(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
         }else{
           attron(COLOR_PAIR(players[i]->id)); // Normal color
+          pchar = 'o'; // Player mark
+          //attroff(COLOR_PAIR(players[i]->id)); // Normal color
         }
-        pchar = 'o'; // Player mark
       }
     }
     // if(pl != NULL && x == pl->posx && y == pl->posy) {
@@ -150,6 +154,16 @@ void ui_draw_grid(gamearea* game, uint8_t playerid, player *players[])
 
     // Put the mark on the grid
     printw(" %c ",pchar);
+
+    for (int i = 0; i < 6; i++){
+      if (players[i] != NULL && players[i]->posx == x && players[i]->posy == y && players[i]->health > 0){
+        if(players[i]->hitwall){
+          attroff(COLOR_PAIR(PLAYER_HIT_COLOR)); // Did player hit a wall
+        }else{
+          attroff(COLOR_PAIR(players[i]->id)); // Normal color
+        }
+      }
+    }
 
     // If player hit a wall disable the color
     if (pl != NULL){
@@ -271,7 +285,7 @@ int client(char *address, int port)
 
 
   initscr(); // Start ncurses
-  noecho(); // Disable echoing of terminal input
+  //noecho(); // Disable echoing of terminal input
   cbreak(); // Individual keystrokes
   intrflush(stdscr, FALSE); // Prevent interrupt flush
   keypad(stdscr,TRUE); // Allow keypad usage
@@ -303,6 +317,7 @@ int client(char *address, int port)
   int chat_server_descriptor = -1;
   struct timeval timeout;
   struct timeval ping_time;
+  gettimeofday(&ping_time, NULL);
   int number_of_lost_pings = 0;
   while(1) {
     FD_ZERO(&readfs);
@@ -353,11 +368,31 @@ int client(char *address, int port)
             break;
           // Function keys, here F1 is reacted to
           case KEY_F(1):
+            spectator_mode = 0;
             number_of_lost_pings = 0;
             if (!status){
               clear_log();
               logposition = 0;
-              send_connect(game_descriptor,(struct sockaddr *)&server_sockaddr, server_addrlen);
+              send_connect(game_descriptor, 1, (struct sockaddr *)&server_sockaddr, server_addrlen);
+            }else{
+              if(chat_server_descriptor > 0){
+                close(chat_server_descriptor);
+                chat_server_descriptor = -1;
+                status = 0;
+                for (int i = 0; i < 6; i++){
+                  free_player(players[i]);
+                  players[i] = NULL;
+                }
+              }
+            }
+            break;
+          case KEY_F(2):
+            spectator_mode = 1;
+            number_of_lost_pings = 0;
+            if (!status){
+              clear_log();
+              logposition = 0;
+              send_connect(game_descriptor, 0, (struct sockaddr *)&server_sockaddr, server_addrlen);
             }else{
               if(chat_server_descriptor > 0){
                 close(chat_server_descriptor);
@@ -516,7 +551,7 @@ int client(char *address, int port)
             free_player(players[i]);
             players[i] = NULL;
           }
-          send_connect(game_descriptor,(struct sockaddr *)&server_sockaddr, server_addrlen);
+          send_connect(game_descriptor, !spectator_mode, (struct sockaddr *)&server_sockaddr, server_addrlen);
         }
       }
 
@@ -638,6 +673,6 @@ int main(int argc, char **argv)
 
 double time_diff(struct timeval *after, struct timeval *before)
 {
-    long int delta = after->tv_usec + 1000000 * after->tv_sec - (before->tv_usec + 1000000 * before->tv_sec);
-    return delta / (double)1000;
+    double delta = after->tv_usec/1000.0 + 1000 * after->tv_sec - (before->tv_usec / 1000.0 + 1000 * before->tv_sec);
+    return delta;
 }

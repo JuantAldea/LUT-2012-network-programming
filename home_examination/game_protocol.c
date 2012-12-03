@@ -22,10 +22,12 @@ int send_spawn(int socket, player_info_t *player_updated, player_info_t *player_
     return sendto(socket, buffer, 4, 0, (struct sockaddr*)&player_to_notify->addr, player_to_notify->addr_len);
 }
 
-int send_connect(int socket, struct sockaddr *addr, socklen_t address_len)
+int send_connect(int socket, uint8_t mode, struct sockaddr *addr, socklen_t address_len)
 {
-    char buffer = CONNECT;
-    return sendto(socket, &buffer, 1, 0, addr, address_len);
+    uint8_t buffer[2];
+    buffer[0] = CONNECT;
+    buffer[1] = mode;
+    return sendto(socket, buffer, 2, 0, addr, address_len);
 }
 
 int send_ready(int socket, struct sockaddr *addr, socklen_t address_len)
@@ -98,6 +100,7 @@ int send_killed_ack(int socket, uint8_t killer_id, player_info_t *player)
 
 void broadcast_move_ack(int socket, player_info_t *player_updated, linked_list_t *players)
 {
+
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
         if(send_move_ack(socket, player_updated, player_to_update) <= 0){
@@ -110,6 +113,7 @@ void send_positions_refresh(int socket, player_info_t *player_to_refresh, linked
 {
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player = (player_info_t*)i->data;
+        if (player->playerID == 255) {continue;}
         if (player != player_to_refresh){
             if(send_move_ack(socket, player, player_to_refresh) <= 0){
                 printf("Error Broadcasting move ack: %s\n", strerror(errno));
@@ -120,6 +124,7 @@ void send_positions_refresh(int socket, player_info_t *player_to_refresh, linked
 
 void broadcast_disconnection_ack(int socket, uint8_t playerid, linked_list_t *players)
 {
+    if (playerid == 255) {return;}
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
         if(send_disconnection_ack(socket, playerid, player_to_update) <= 0){
@@ -138,6 +143,7 @@ int send_disconnection_ack(int socket, uint8_t playerid, player_info_t *player)
 
 void broadcast_death_ack(int socket, uint8_t playerid, linked_list_t *players)
 {
+    if (playerid == 255){return;}
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
         if(send_death_ack(socket, playerid, player_to_update) <= 0){
@@ -157,6 +163,7 @@ int send_death_ack(int socket, uint8_t death_id, player_info_t *player)
 
 void broadcast_spawn(int socket, player_info_t *updated_player, linked_list_t *players)
 {
+    if (updated_player->playerID == 255){return;}
     for (node_t *i = players->head->next; i != players->tail; i = i->next){
         player_info_t *player_to_update = (player_info_t*)i->data;
         if(send_spawn(socket, updated_player, player_to_update) <= 0){

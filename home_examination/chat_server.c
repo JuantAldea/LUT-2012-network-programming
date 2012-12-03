@@ -17,12 +17,16 @@ void chat_server(int socket)
 
     if (player_node != NULL){
         player_info_t *player = (player_info_t*)player_node->data;
+        player->chat_descriptor = connection_descriptor;
         printf("[CHAT SERVER] Player%d registered\n", player->playerID);
+
+        if (player->playerID == 255){
+            return;
+        }
+
         char msg[129];
         sprintf(msg, "Player %d connected", player->playerID);
         chat_forward_msg(0, msg, player_list);
-
-        player->chat_descriptor = connection_descriptor;
     }else{
         printf("[CHAT SERVER] Dropping unkown client\n");
         close(connection_descriptor);
