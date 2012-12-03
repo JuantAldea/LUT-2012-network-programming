@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#               Home Examination              #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Makefile                   #
+###############################################
+*/
+
 #ifndef __MAP_H__
 #define __MAP_H__
 

@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#               Home Examination              #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Makefile                   #
+###############################################
+*/
+
 #ifndef __GAME_PROTOCOL_H__
 #define __GAME_PROTOCOL_H__
 

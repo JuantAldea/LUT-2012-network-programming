@@ -1,0 +1,48 @@
+
+###############################################
+#        CT30A5001 - Network Programming      #
+#               Home Examination              #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  README                     #
+###############################################
+
+
+
+
+.
+├── chat_protocol.c -Chat server functions
+├── chat_protocol.h
+├── chat_server.c - Chat server
+├── chat_server.h
+├── clientdata
+│   ├── 00404450.map
+│   ├── 10404450.map
+│   └── 20404450.map
+├── game_protocol.c -Game protocol functions
+├── game_protocol.h
+├── game_server.c -Game server file
+├── game_server.h
+├── linked_list.c
+├── linked_list.h
+├── Makefile
+├── mapcycle.txt
+├── map.c - Map_t struct
+├── map.h
+├── map_server.c - Map sender
+├── map_server.h
+├── md5.c - Quite clear
+├── md5.h
+├── nc.c
+├── nc.h
+├── serverdata
+│   ├── 00404450.map
+│   ├── 10404450.map
+│   └── 20404450.map
+├── server.c - Main server
+├── server.h
+├── system_headers.h
+├── tcp.c TCP Server and client init
+├── tcp.h
+├── udp.c UDP Server and client init
+└── udp.h

@@ -1,5 +1,16 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#               Home Examination              #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Makefile                   #
+###############################################
+*/
+
 #include "game_server.h"
 #include <time.h>
+
 extern linked_list_t *player_list;
 extern linked_list_t *observer_list;
 extern int change_map;

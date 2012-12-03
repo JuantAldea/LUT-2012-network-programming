@@ -1,3 +1,13 @@
+/*
+###############################################
+#        CT30A5001 - Network Programming      #
+#               Home Examination              #
+#   Juan Antonio Aldea Armenteros (0404450)   #
+#        juan.aldea.armenteros@lut.fi         #
+#                  Makefile                   #
+###############################################
+*/
+
 #include "chat_server.h"
 
 //if someone connects to the map server, send the current_map

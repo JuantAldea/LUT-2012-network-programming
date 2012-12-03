@@ -1,6 +1,6 @@
 ###############################################
 #        CT30A5001 - Network Programming      #
-#          Assignment 6: FTP Client           #
+#               Home Examination              #
 #   Juan Antonio Aldea Armenteros (0404450)   #
 #        juan.aldea.armenteros@lut.fi         #
 #                  Makefile                   #
