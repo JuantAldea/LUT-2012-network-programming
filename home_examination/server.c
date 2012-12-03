@@ -75,9 +75,11 @@ static volatile int server_running = 1;
 
 void sighandler(int sig)
 {
+    printf("SIGNAL CATCHED\n");
     switch(sig){
         default:
             server_running = 0;
+            change_map = 1;
         break;
     }
 
@@ -128,8 +130,7 @@ void server(int port)
         change_map = 0;
         while(!change_map){
             if(select(max_fd  + 1, &descriptors_set, NULL, NULL, &timeout) < 0) {
-                perror("Error in select");
-                exit(EXIT_FAILURE);
+                continue;
             }
 
             timeout.tv_sec = 3;
@@ -214,8 +215,10 @@ void server(int port)
         }
 
         list_delete(player_list);
-        game_server_shutdown();
         free(player_list);
+        list_delete(observer_list);
+        game_server_shutdown();
+        free(observer_list);
         close(map_server_socket);
         close(chat_server_socket);
         close(game_server_socket);
