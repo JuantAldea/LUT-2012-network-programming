@@ -1,0 +1,9 @@
+The Transmission Control Protocol (TCP) is one of the core protocols of the Internet Protocol Suite
+TCP is one of the two original components of the suite, complementing the Internet Protocol (IP), and therefore the entire suite is commonly referred to as TCP/IP.
+TCP provides reliable, ordered delivery of a stream of octets from a program on one computer to another program on another computer.
+TCP is the protocol used by major Internet applications such as the World Wide Web, email, remote administration and file transfer.
+Other applications, which do not require reliable data stream service, may use the User Datagram Protocol (UDP), which provides a datagram service that emphasizes reduced latency over reliability.
+In May 1974 the Institute of Electrical and Electronic Engineers (IEEE) published a paper entitled "A Protocol for Packet Network Intercommunication."[1] The paper's authors, Vint Cerf and Bob Kahn, described an internetworking protocol for sharing resources using packet-switching among the nodes.
+A central control component of this model was the Transmission Control Program that incorporated both connection-oriented links and datagram services between hosts.
+The monolithic Transmission Control Program was later divided into a modular architecture consisting of the Transmission Control Protocol at the connection-oriented layer and the Internet Protocol at the internetworking (datagram) layer.
+The model became known informally as TCP/IP, although formally it was henceforth called the Internet Protocol Suite.
